@@ -36,51 +36,39 @@
     const ADMIN_USER = 'admin';
     const ADMIN_PASS = 'admin2026';
 
-    // ── Escudos via API de imágenes de Wikipedia / Wikimedia (libres) ──
-    // Fuente: logos oficiales de federaciones en Wikimedia Commons
+    // Base URL de los escudos — paladarnegro.net/escudoteca/mundial2026
+    const CDN = 'https://paladarnegro.net/escudoteca/mundial2026/mundial2026/png/';
+
     const TEAMS = {
-      'México':        { flag:'🇲🇽', rank:16,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/8/86/Mexico_national_football_team_crest.svg/150px-Mexico_national_football_team_crest.svg.png' },
-      'Polonia':       { flag:'🇵🇱', rank:25,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Polish_Football_Association_crest.svg/150px-Polish_Football_Association_crest.svg.png' },
-      'Arabia Saudita':{ flag:'🇸🇦', rank:58,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/2/27/Saudi_Arabian_Football_Federation.svg/150px-Saudi_Arabian_Football_Federation.svg.png' },
-      'Argentina':     { flag:'🇦🇷', rank:1,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/c/c1/Argentina_football_association_logo.svg/150px-Argentina_football_association_logo.svg.png' },
-      'Francia':       { flag:'🇫🇷', rank:3,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/1/18/FFF_logo_2021.svg/150px-FFF_logo_2021.svg.png' },
-      'Australia':     { flag:'🇦🇺', rank:23,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/a/a3/Football_Federation_Australia_logo.svg/150px-Football_Federation_Australia_logo.svg.png' },
-      'Dinamarca':     { flag:'🇩🇰', rank:22,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/8/8e/DBU_logo.svg/150px-DBU_logo.svg.png' },
-      'Túnez':         { flag:'🇹🇳', rank:34,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/b/b9/Tunisian_Football_Federation_logo.svg/150px-Tunisian_Football_Federation_logo.svg.png' },
-      'Brasil':        { flag:'🇧🇷', rank:5,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Confedera%C3%A7%C3%A3o_Brasileira_de_Futebol_logo.svg/150px-Confedera%C3%A7%C3%A3o_Brasileira_de_Futebol_logo.svg.png' },
-      'Serbia':        { flag:'🇷🇸', rank:33,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/f/f9/Football_Association_of_Serbia_logo.svg/150px-Football_Association_of_Serbia_logo.svg.png' },
-      'Suiza':         { flag:'🇨🇭', rank:19,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/0/06/Football_Association_Switzerland_Logo.svg/150px-Football_Association_Switzerland_Logo.svg.png' },
-      'Camerún':       { flag:'🇨🇲', rank:43,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/f/fe/Cameroon_FA.svg/150px-Cameroon_FA.svg.png' },
-      'España':        { flag:'🇪🇸', rank:2,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/a/a6/Real_Federaci%C3%B3n_Espa%C3%B1ola_de_F%C3%BAtbol_%28RFEF%29_2021_logo.svg/150px-Real_Federaci%C3%B3n_Espa%C3%B1ola_de_F%C3%BAtbol_%28RFEF%29_2021_logo.svg.png' },
-      'Costa Rica':    { flag:'🇨🇷', rank:50,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/6/60/FEDEFUTBOL_logo.svg/150px-FEDEFUTBOL_logo.svg.png' },
-      'Alemania':      { flag:'🇩🇪', rank:12,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/a/a1/DFB-Logo_2022.svg/150px-DFB-Logo_2022.svg.png' },
-      'Japón':         { flag:'🇯🇵', rank:15,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/4/43/JFA_logo_2024.svg/150px-JFA_logo_2024.svg.png' },
-      'Uruguay':       { flag:'🇺🇾', rank:20,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/b/b8/Uruguay_football_association_logo.svg/150px-Uruguay_football_association_logo.svg.png' },
-      'Corea del Sur': { flag:'🇰🇷', rank:24,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/e/e5/Korea_Football_Association.svg/150px-Korea_Football_Association.svg.png' },
-      'Portugal':      { flag:'🇵🇹', rank:6,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/f/f5/FPF_%28logo%29.svg/150px-FPF_%28logo%29.svg.png' },
-      'Ghana':         { flag:'🇬🇭', rank:65,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/3/3c/Ghana_Football_Association.svg/150px-Ghana_Football_Association.svg.png' },
-      'Inglaterra':    { flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', rank:4,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/TheFA.svg/150px-TheFA.svg.png' },
-      'Senegal':       { flag:'🇸🇳', rank:18,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Federation_Senegalaise_de_Football_%28logo%29.svg/150px-Federation_Senegalaise_de_Football_%28logo%29.svg.png' },
-      'Holanda':       { flag:'🇳🇱', rank:7,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/6/67/KNVB_logo.svg/150px-KNVB_logo.svg.png' },
-      'Ecuador':       { flag:'🇪🇨', rank:42,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/2/23/FEF_logo.svg/150px-FEF_logo.svg.png' },
-      'Italia':        { flag:'🇮🇹', rank:11,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/f/f7/FIGC.svg/150px-FIGC.svg.png' },
-      'Marruecos':     { flag:'🇲🇦', rank:14,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/a/ae/Royal_Moroccan_Football_Federation_%28logo%29.svg/150px-Royal_Moroccan_Football_Federation_%28logo%29.svg.png' },
-      'Bélgica':       { flag:'🇧🇪', rank:8,   crest:'https://upload.wikimedia.org/wikipedia/en/thumb/e/ef/Royal_Belgian_Football_Association_logo.svg/150px-Royal_Belgian_Football_Association_logo.svg.png' },
-      'Canadá':        { flag:'🇨🇦', rank:47,  crest:'https://upload.wikimedia.org/wikipedia/en/thumb/e/e5/Canada_Soccer_Logo.svg/150px-Canada_Soccer_Logo.svg.png' },
+      'Argentina':      { rank:1,  flag:'🇦🇷', crest: CDN+'argentina.png' },
+      'España':         { rank:2,  flag:'🇪🇸', crest: CDN+'espana.png' },
+      'Francia':        { rank:3,  flag:'🇫🇷', crest: CDN+'francia.png' },
+      'Inglaterra':     { rank:4,  flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', crest: CDN+'inglaterra.png' },
+      'Brasil':         { rank:5,  flag:'🇧🇷', crest: CDN+'brasil.png' },
+      'Portugal':       { rank:6,  flag:'🇵🇹', crest: CDN+'portugal.png' },
+      'Holanda':        { rank:7,  flag:'🇳🇱', crest: CDN+'paisesbajos.png' },
+      'Bélgica':        { rank:8,  flag:'🇧🇪', crest: CDN+'belgica.png' },
+      'Alemania':       { rank:12, flag:'🇩🇪', crest: CDN+'alemania.png' },
+      'Italia':         { rank:11, flag:'🇮🇹', crest: CDN+'italia.png' },
+      'Marruecos':      { rank:14, flag:'🇲🇦', crest: CDN+'marruecos.png' },
+      'Senegal':        { rank:18, flag:'🇸🇳', crest: CDN+'senegal.png' },
+      'México':         { rank:16, flag:'🇲🇽', crest: CDN+'mexico.png' },
+      'Uruguay':        { rank:20, flag:'🇺🇾', crest: CDN+'uruguay.png' },
+      'Suiza':          { rank:19, flag:'🇨🇭', crest: CDN+'suiza.png' },
+      'Dinamarca':      { rank:22, flag:'🇩🇰', crest: CDN+'dinamarca.png' },
+      'Australia':      { rank:23, flag:'🇦🇺', crest: CDN+'australia.png' },
+      'Corea del Sur':  { rank:24, flag:'🇰🇷', crest: CDN+'coreadelsur.png' },
+      'Polonia':        { rank:25, flag:'🇵🇱', crest: CDN+'polonia.png' },
+      'Japón':          { rank:15, flag:'🇯🇵', crest: CDN+'japon.png' },
+      'Ecuador':        { rank:42, flag:'🇪🇨', crest: CDN+'ecuador.png' },
+      'Túnez':          { rank:34, flag:'🇹🇳', crest: CDN+'tunez.png' },
+      'Arabia Saudita': { rank:58, flag:'🇸🇦', crest: CDN+'arabiasaudita.png' },
+      'Ghana':          { rank:65, flag:'🇬🇭', crest: CDN+'ghana.png' },
+      'Serbia':         { rank:33, flag:'🇷🇸', crest: CDN+'serbia.png' },
+      'Camerún':        { rank:43, flag:'🇨🇲', crest: CDN+'camerun.png' },
+      'Costa Rica':     { rank:50, flag:'🇨🇷', crest: CDN+'costarica.png' },
+      'Canadá':         { rank:47, flag:'🇨🇦', crest: CDN+'canada.png' },
     };
-
-    function teamCrest(name) {
-      const t = TEAMS[name];
-      if (!t) return `<span style="font-size:40px">${'⚽'}</span>`;
-      return `<img src="${t.crest}" class="team-crest" alt="${name}"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-        <span style="display:none;font-size:36px">${t.flag}</span>`;
-    }
-
-    function teamRank(name) {
-      const t = TEAMS[name];
-      return t ? `#${t.rank} FIFA` : '';
-    }
 
     // ── Estado ──
     let currentUser  = null;
@@ -159,6 +147,24 @@
       setTimeout(()=>t.classList.remove('show'), 2800);
     }
 
+    // ── Bloque de equipo con escudo real ──
+    function teamBlock(name) {
+      const t = TEAMS[name] || { flag:'⚽', rank:null, crest:'' };
+      return `
+        <div class="team">
+          <div class="team-crest-wrap">
+            <img
+              src="${t.crest}"
+              class="team-crest"
+              alt="${name}"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="team-crest-fallback">${t.flag}</div>
+          </div>
+          <span class="team-name">${name}</span>
+          ${t.rank ? `<span class="team-rank">#${t.rank} FIFA</span>` : ''}
+        </div>`;
+    }
+
     // ── Firebase ──
     function startListening() {
       if (unsubUsers) unsubUsers();
@@ -202,22 +208,7 @@
       return '';
     }
 
-    // ── Bloque de equipo con escudo ──
-    function renderTeamBlock(name) {
-      const t = TEAMS[name] || {};
-      return `
-        <div class="team">
-          <div class="team-crest-wrap">
-            <img src="${t.crest||''}" class="team-crest" alt="${name}"
-              onerror="this.onerror=null;this.src='';this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="team-crest-fallback" style="display:none">${t.flag||'⚽'}</div>
-          </div>
-          <span class="team-name">${name}</span>
-          <span class="team-rank">${t.rank ? '#'+t.rank+' FIFA' : ''}</span>
-        </div>`;
-    }
-
-    // ── Vista: Partidos ──
+    // ── Partidos ──
     function renderMatches() {
       const labels = {all:'Todos',open:'Abiertos',closed:'Cerrados'};
       const filtered = MATCHES.filter(m => matchFilter==='all' || getMatchStatus(m)===matchFilter);
@@ -238,7 +229,7 @@
             </span>
           </div>
           <div class="match-teams">
-            ${renderTeamBlock(m.home)}
+            ${teamBlock(m.home)}
             <div class="vs-zone">
               ${res?`<div class="result-final">${res.home} - ${res.away}</div><div class="result-label">RESULTADO FINAL</div>`:''}
               <div class="score-inputs">
@@ -249,7 +240,7 @@
               ${isOpen?`<button class="btn-predict" onclick="window.__savePred(${m.id})">Guardar</button>`:''}
               ${pred.home!==undefined?`<div class="prediction-saved">✓ ${pred.home}-${pred.away}</div>`:''}
             </div>
-            ${renderTeamBlock(m.away)}
+            ${teamBlock(m.away)}
           </div>
         </div>`;
       }).join('');
@@ -312,9 +303,9 @@
         return `<div class="pred-item">
           <div class="pred-match">
             <div style="display:flex;align-items:center;gap:8px;font-weight:600">
-              <img src="${ht.crest||''}" style="height:22px;width:auto;object-fit:contain" onerror="this.style.display='none'">
+              <img src="${ht.crest||''}" style="height:24px;width:auto;object-fit:contain" onerror="this.style.display='none'">
               ${match.home} vs ${match.away}
-              <img src="${at.crest||''}" style="height:22px;width:auto;object-fit:contain" onerror="this.style.display='none'">
+              <img src="${at.crest||''}" style="height:24px;width:auto;object-fit:contain" onerror="this.style.display='none'">
             </div>
             <div style="font-size:12px;color:var(--muted)">Grupo ${match.group} · ${formatDate(match.date,match.time)}</div>
           </div>
