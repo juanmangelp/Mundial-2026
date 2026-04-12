@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prode Mundial 2026</title>
+  <meta name="description" content="Prode del Mundial de Fútbol 2026 — USA, México y Canadá">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
+</head>
+<body>
+  <div id="app"></div>
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc,
+      collection, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ── Firebase config ──
+    const firebaseConfig = {
+      apiKey: "AIzaSyAdcGWVbaF6Vf6Lfghrdun6jxWvkBx2YRI",
+      authDomain: "prode2026-2eefa.firebaseapp.com",
+      projectId: "prode2026-2eefa",
+      storageBucket: "prode2026-2eefa.firebasestorage.app",
+      messagingSenderId: "297919804411",
+      appId: "1:297919804411:web:8caf1d592d0a438569515e"
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const db = getFirestore(firebaseApp);
+
+    // ── Estado de la app ──
+    let currentUser  = null;
+    let currentView  = 'matches';
+    let matchFilter  = 'all';
+    let isRegister   = false;
+    let allUsers     = {};   // cache en memoria (se actualiza por onSnapshot)
+    let results      = {};   // resultados reales de los partidos
+    let unsubscribe  = null; // listener de Firestore
+
+    // ── Partidos del Mundial 2026 ──
+    const MATCHES = [
+      {id:1,  group:'A', home:'México',        homeFlag:'🇲🇽', away:'Polonia',       awayFlag:'🇵🇱', date:'2026-06-11', time:'18:00', venue:'Estadio Azteca'},
+      {id:2,  group:'A', home:'Arabia Saudita',homeFlag:'🇸🇦', away:'Argentina',     awayFlag:'🇦🇷', date:'2026-06-12', time:'15:00', venue:'Dallas'},
+      {id:3,  group:'B', home:'Francia',       homeFlag:'🇫🇷', away:'Australia',     awayFlag:'🇦🇺', date:'2026-06-12', time:'18:00', venue:'NY/NJ'},
+      {id:4,  group:'B', home:'Dinamarca',     homeFlag:'🇩🇰', away:'Túnez',         awayFlag:'🇹🇳', date:'2026-06-13', time:'15:00', venue:'Miami'},
+      {id:5,  group:'C', home:'Argentina',     homeFlag:'🇦🇷', away:'Polonia',       awayFlag:'🇵🇱', date:'2026-06-16', time:'21:00', venue:'Miami'},
+      {id:6,  group:'C', home:'México',        homeFlag:'🇲🇽', away:'Arabia Saudita',awayFlag:'🇸🇦', date:'2026-06-17', time:'15:00', venue:'Los Angeles'},
+      {id:7,  group:'D', home:'Brasil',        homeFlag:'🇧🇷', away:'Serbia',        awayFlag:'🇷🇸', date:'2026-06-14', time:'18:00', venue:'San Francisco'},
+      {id:8,  group:'D', home:'Suiza',         homeFlag:'🇨🇭', away:'Camerún',       awayFlag:'🇨🇲', date:'2026-06-15', time:'15:00', venue:'Seattle'},
+      {id:9,  group:'E', home:'España',        homeFlag:'🇪🇸', away:'Costa Rica',    awayFlag:'🇨🇷', date:'2026-06-15', time:'18:00', venue:'Boston'},
+      {id:10, group:'E', home:'Alemania',      homeFlag:'🇩🇪', away:'Japón',         awayFlag:'🇯🇵', date:'2026-06-16', time:'21:00', venue:'Kansas City'},
+      {id:11, group:'F', home:'Uruguay',       homeFlag:'🇺🇾', away:'Corea del Sur', awayFlag:'🇰🇷', date:'2026-06-17', time:'18:00', venue:'Dallas'},
+      {id:12, group:'F', home:'Portugal',      homeFlag:'🇵🇹', away:'Ghana',         awayFlag:'🇬🇭', date:'2026-06-18', time:'15:00', venue:'Filadelfia'},
+      {id:13, group:'G', home:'Inglaterra',    homeFlag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', away:'Senegal',       awayFlag:'🇸🇳', date:'2026-06-19', time:'21:00', venue:'NY/NJ'},
+      {id:14, group:'G', home:'Holanda',       homeFlag:'🇳🇱', away:'Ecuador',       awayFlag:'🇪🇨', date:'2026-06-20', time:'18:00', venue:'Houston'},
+      {id:15, group:'H', home:'Italia',        homeFlag:'🇮🇹', away:'Marruecos',     awayFlag:'🇲🇦', date:'2026-06-21', time:'15:00', venue:'Los Angeles'},
+      {id:16, group:'H', home:'Bélgica',       homeFlag:'🇧🇪', away:'Canadá',        awayFlag:'🇨🇦', date:'2026-06-22', time:'18:00', venue:'Vancouver'},
+      {id:17, group:'A', home:'Argentina',     homeFlag:'🇦🇷', away:'México',        awayFlag:'🇲🇽', date:'2026-06-26', time:'20:00', venue:'Dallas'},
+      {id:18, group:'B', home:'Francia',       homeFlag:'🇫🇷', away:'Dinamarca',     awayFlag:'🇩🇰', date:'2026-06-26', time:'20:00', venue:'Miami'},
+      {id:19, group:'C', home:'España',        homeFlag:'🇪🇸', away:'Alemania',      awayFlag:'🇩🇪', date:'2026-06-30', time:'21:00', venue:'Los Angeles'},
+      {id:20, group:'D', home:'Brasil',        homeFlag:'🇧🇷', away:'Portugal',      awayFlag:'🇵🇹', date:'2026-07-01', time:'21:00', venue:'Miami'},
+    ];
+
+    // ── Helpers de tiempo ──
+    function getMatchStatus(match) {
+      const now     = new Date();
+      const matchDT = new Date(`${match.date}T${match.time}:00`);
+      const diffMin = (matchDT - now) / 60000;
+      if (diffMin > 30)   return 'open';
+      if (diffMin > -110) return 'live';
+      return 'closed';
+    }
+
+    function getCountdown(match) {
+      const now     = new Date();
+      const matchDT = new Date(`${match.date}T${match.time}:00`);
+      const diff    = matchDT - now - 30 * 60000;
+      if (diff <= 0) return null;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      if (h > 48) return `Cierra en ${Math.floor(h/24)}d`;
+      return `Cierra en ${h}h ${m}m`;
+    }
+
+    function formatDate(d, time) {
+      const dt = new Date(`${d}T${time}:00`);
+      return dt.toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'}) + ' · ' + time;
+    }
+
+    // ── Puntos ──
+    function calcScore(userObj) {
+      const preds = userObj.predictions || {};
+      let pts = 0, exact = 0, winner = 0;
+      for (const [mid, pred] of Object.entries(preds)) {
+        const res = results[mid];
+        if (!res) continue;
+        if (pred.home === res.home && pred.away === res.away) {
+          pts += 3; exact++;
+        } else {
+          const pw = pred.home > pred.away ? 1 : pred.home < pred.away ? -1 : 0;
+          const rw = res.home  > res.away  ? 1 : res.home  < res.away  ? -1 : 0;
+          if (pw === rw) { pts += 1; winner++; }
+        }
+      }
+      return { pts, exact, winner };
+    }
+
+    // ── Toast ──
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    // ── Firebase: escuchar cambios en tiempo real ──
+    function startListening() {
+      if (unsubscribe) unsubscribe();
+
+      // Escuchar colección "users"
+      unsubscribe = onSnapshot(collection(db, 'users'), snapshot => {
+        allUsers = {};
+        snapshot.forEach(docSnap => {
+          allUsers[docSnap.id] = docSnap.data();
+        });
+        render();
+      });
+
+      // Escuchar resultados
+      onSnapshot(doc(db, 'config', 'results'), docSnap => {
+        if (docSnap.exists()) results = docSnap.data();
+        render();
+      });
+    }
+
+    // ── Firebase: guardar usuario ──
+    async function saveUser(username, data) {
+      await setDoc(doc(db, 'users', username), data, { merge: true });
+    }
+
+    // ── Firebase: guardar pronóstico ──
+    async function savePrediction(username, matchId, home, away) {
+      const field = `predictions.${matchId}`;
+      await updateDoc(doc(db, 'users', username), { [field]: { home, away } });
+    }
+
+    // ── RENDER PRINCIPAL ──
+    function render() {
+      const app = document.getElementById('app');
+      if (!currentUser) { app.innerHTML = renderLogin(); return; }
+
+      app.innerHTML = `
+        <div class="header">
+          <div class="logo">🏆 PRODE MUNDIAL 2026</div>
+          <div class="user-info">
+            <div class="avatar">${(allUsers[currentUser]?.name || currentUser).substring(0,2).toUpperCase()}</div>
+            <span>${allUsers[currentUser]?.name || currentUser}</span>
+            <button class="btn-logout" onclick="window.__logout()">Salir</button>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-btn ${currentView==='matches'    ?'active':''}" onclick="window.__setView('matches')">⚽ Partidos</button>
+          <button class="nav-btn ${currentView==='leaderboard'?'active':''}" onclick="window.__setView('leaderboard')">🏅 Tabla</button>
+          <button class="nav-btn ${currentView==='mypreds'    ?'active':''}" onclick="window.__setView('mypreds')">📋 Mis Pronósticos</button>
+        </nav>
+        <div class="main">${renderView()}</div>
+      `;
+    }
+
+    function renderView() {
+      if (currentView === 'matches')     return renderMatches();
+      if (currentView === 'leaderboard') return renderLeaderboard();
+      if (currentView === 'mypreds')     return renderMyPreds();
+      return '';
+    }
+
+    // ── Vista: Partidos ──
+    function renderMatches() {
+      const labels   = { all:'Todos', open:'Abiertos', closed:'Cerrados' };
+      const filtered = MATCHES.filter(m => matchFilter === 'all' || getMatchStatus(m) === matchFilter);
+      const preds    = allUsers[currentUser]?.predictions || {};
+
+      const cards = filtered.map(m => {
+        const status = getMatchStatus(m);
+        const pred   = preds[m.id] || {};
+        const res    = results[m.id];
+        const cd     = getCountdown(m);
+        const isOpen = status === 'open';
+
+        return `
+        <div class="match-card">
+          <div class="match-header">
+            <div>
+              <div class="group-label">GRUPO ${m.group} · ${m.venue}</div>
+              <div class="match-date">${formatDate(m.date, m.time)}</div>
+              ${cd ? `<div class="countdown">${cd}</div>` : ''}
+            </div>
+            <span class="match-status ${status==='open'?'status-open':status==='live'?'status-live':'status-closed'}">
+              ${status==='open'?'ABIERTO':status==='live'?'🔴 EN VIVO':'CERRADO'}
+            </span>
+          </div>
+          <div class="match-teams">
+            <div class="team">
+              <span class="team-flag">${m.homeFlag}</span>
+              <span class="team-name">${m.home}</span>
+            </div>
+            <div class="vs-zone">
+              ${res ? `<div class="result-final">${res.home} - ${res.away}</div><div class="result-label">RESULTADO FINAL</div>` : ''}
+              <div class="score-inputs">
+                <input class="score-input" type="number" min="0" max="20" id="h${m.id}"
+                  value="${pred.home !== undefined ? pred.home : ''}"
+                  ${!isOpen ? 'disabled' : ''}>
+                <span class="vs-text">-</span>
+                <input class="score-input" type="number" min="0" max="20" id="a${m.id}"
+                  value="${pred.away !== undefined ? pred.away : ''}"
+                  ${!isOpen ? 'disabled' : ''}>
+              </div>
+              ${isOpen ? `<button class="btn-predict" onclick="window.__savePred(${m.id})">Guardar</button>` : ''}
+              ${pred.home !== undefined ? `<div class="prediction-saved">✓ Guardado: ${pred.home}-${pred.away}</div>` : ''}
+            </div>
+            <div class="team">
+              <span class="team-flag">${m.awayFlag}</span>
+              <span class="team-name">${m.away}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+        <div class="section-title">Partidos</div>
+        <div class="filter-bar">
+          ${Object.entries(labels).map(([k,v]) =>
+            `<button class="filter-btn ${matchFilter===k?'active':''}" onclick="window.__setFilter('${k}')">${v}</button>`
+          ).join('')}
+        </div>
+        ${cards || '<div class="empty-state"><div class="icon">🔍</div><p>No hay partidos en esta categoría</p></div>'}
+      `;
+    }
+
+    // ── Vista: Tabla de posiciones ──
+    function renderLeaderboard() {
+      const ranking = Object.entries(allUsers)
+        .map(([key, u]) => ({ key, name: u.name, ...calcScore(u), predCount: Object.keys(u.predictions||{}).length }))
+        .sort((a,b) => b.pts - a.pts || b.exact - a.exact);
+
+      const rows = ranking.map((u, i) => {
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="rank-n">${i+1}</span>`;
+        return `
+          <tr class="${u.key===currentUser?'highlight-row':''}">
+            <td><span class="${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${medal}</span></td>
+            <td><span class="player-name">${u.name}${u.key===currentUser?' (vos)':''}</span></td>
+            <td style="color:var(--muted)">${u.predCount}</td>
+            <td style="color:var(--gold)">${u.exact}</td>
+            <td style="color:#4ac261">${u.winner}</td>
+            <td><span class="pts">${u.pts}</span> <span class="pts-label">pts</span></td>
+          </tr>`;
+      }).join('');
+
+      return `
+        <div class="section-title">Tabla de Posiciones</div>
+        <div class="live-badge">🟢 Actualización en tiempo real</div>
+        <div class="points-info">
+          <h3>Sistema de puntos</h3>
+          <div class="points-row"><span>Resultado exacto (ej: pronosticás 2-1 y sale 2-1)</span><span class="score-badge">3 pts</span></div>
+          <div class="points-row"><span>Ganador correcto (distinto marcador pero mismo ganador)</span><span class="score-badge">1 pt</span></div>
+          <div class="points-row"><span>Resultado incorrecto</span><span class="score-badge">0 pts</span></div>
+        </div>
+        <table class="leaderboard-table">
+          <thead><tr>
+            <th>#</th><th>Jugador</th><th>Pronóst.</th><th>Exactos</th><th>Ganador</th><th>Puntos</th>
+          </tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Aún no hay jugadores</td></tr>'}</tbody>
+        </table>
+      `;
+    }
+
+    // ── Vista: Mis pronósticos ──
+    function renderMyPreds() {
+      const preds   = allUsers[currentUser]?.predictions || {};
+      const entries = Object.entries(preds);
+
+      if (!entries.length) return `
+        <div class="section-title">Mis Pronósticos</div>
+        <div class="empty-state">
+          <div class="icon">📝</div>
+          <p>Aún no hiciste ningún pronóstico.<br>¡Entrá a Partidos y empezá a predecir!</p>
+        </div>`;
+
+      const items = entries.map(([mid, pred]) => {
+        const match = MATCHES.find(m => m.id == mid);
+        if (!match) return '';
+        const res = results[mid];
+        let tag = '<span class="pred-result res-pending">Pendiente</span>';
+        if (res) {
+          if (pred.home === res.home && pred.away === res.away) {
+            tag = '<span class="pred-result res-exact">+3 pts ★ EXACTO</span>';
+          } else {
+            const pw = pred.home>pred.away?1:pred.home<pred.away?-1:0;
+            const rw = res.home >res.away ?1:res.home <res.away ?-1:0;
+            tag = pw===rw
+              ? '<span class="pred-result res-winner">+1 pt ✓ Ganador</span>'
+              : '<span class="pred-result res-wrong">0 pts ✗</span>';
+          }
+        }
+        return `
+          <div class="pred-item">
+            <div class="pred-match">
+              <div style="font-weight:600">${match.homeFlag} ${match.home} vs ${match.away} ${match.awayFlag}</div>
+              <div style="font-size:12px;color:var(--muted)">Grupo ${match.group} · ${formatDate(match.date,match.time)}</div>
+            </div>
+            <div>
+              <div class="pred-score">${pred.home} - ${pred.away}</div>
+              <div class="pred-score-label">tu pronóstico</div>
+            </div>
+            ${tag}
+          </div>`;
+      }).join('');
+
+      return `<div class="section-title">Mis Pronósticos</div>${items}`;
+    }
+
+    // ── Vista: Login / Registro ──
+    function renderLogin() {
+      return `
+        <div class="login-page">
+          <div class="login-box">
+            <div class="login-trophy">🏆</div>
+            <div class="login-title">PRODE 2026</div>
+            <div class="login-sub">Mundial de Fútbol · USA · México · Canadá</div>
+            <div id="login-error"></div>
+            ${isRegister ? `
+              <div class="input-group">
+                <label>Nombre completo</label>
+                <input type="text" id="inp-name" placeholder="Juan Pérez">
+              </div>
+              <div class="input-group">
+                <label>Usuario (sin espacios)</label>
+                <input type="text" id="inp-user" placeholder="juan_perez">
+              </div>` : `
+              <div class="input-group">
+                <label>Usuario</label>
+                <input type="text" id="inp-user" placeholder="usuario" autocomplete="username">
+              </div>`}
+            <div class="input-group">
+              <label>Contraseña</label>
+              <input type="password" id="inp-pass" placeholder="••••••••"
+                autocomplete="${isRegister?'new-password':'current-password'}"
+                onkeydown="if(event.key==='Enter') ${isRegister?'window.__doRegister()':'window.__doLogin()'}">
+            </div>
+            <button class="btn-primary" id="btn-submit" onclick="${isRegister?'window.__doRegister()':'window.__doLogin()'}">
+              ${isRegister ? 'Crear cuenta' : 'Entrar al prode'}
+            </button>
+            <div class="login-toggle">
+              ${isRegister
+                ? '¿Ya tenés cuenta? <a onclick="window.__toggleMode()">Iniciá sesión</a>'
+                : '¿No tenés cuenta? <a onclick="window.__toggleMode()">Registrate gratis</a>'}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ── Acciones globales (accesibles desde HTML) ──
+    window.__toggleMode = () => { isRegister = !isRegister; render(); };
+
+    window.__doLogin = async () => {
+      const user = document.getElementById('inp-user').value.trim().toLowerCase();
+      const pass = document.getElementById('inp-pass').value;
+      const errEl = document.getElementById('login-error');
+      const btn   = document.getElementById('btn-submit');
+      if (!user || !pass) { errEl.innerHTML = '<div class="error-msg">Completá todos los campos</div>'; return; }
+
+      btn.textContent = 'Verificando...'; btn.disabled = true;
+      try {
+        const snap = await getDoc(doc(db, 'users', user));
+        if (!snap.exists() || snap.data().password !== pass) {
+          errEl.innerHTML = '<div class="error-msg">Usuario o contraseña incorrectos</div>';
+          btn.textContent = 'Entrar al prode'; btn.disabled = false;
+          return;
+        }
+        currentUser = user;
+        startListening();
+      } catch(e) {
+        errEl.innerHTML = '<div class="error-msg">Error de conexión. Revisá tu internet.</div>';
+        btn.textContent = 'Entrar al prode'; btn.disabled = false;
+      }
+    };
+
+    window.__doRegister = async () => {
+      const name  = document.getElementById('inp-name')?.value.trim();
+      const uname = document.getElementById('inp-user').value.trim().toLowerCase().replace(/\s+/g,'_');
+      const pass  = document.getElementById('inp-pass').value;
+      const errEl = document.getElementById('login-error');
+      const btn   = document.getElementById('btn-submit');
+
+      if (!name || !uname || !pass) { errEl.innerHTML = '<div class="error-msg">Completá todos los campos</div>'; return; }
+      if (pass.length < 4) { errEl.innerHTML = '<div class="error-msg">La contraseña debe tener al menos 4 caracteres</div>'; return; }
+
+      btn.textContent = 'Creando cuenta...'; btn.disabled = true;
+      try {
+        const snap = await getDoc(doc(db, 'users', uname));
+        if (snap.exists()) {
+          errEl.innerHTML = '<div class="error-msg">Ese usuario ya existe, elegí otro</div>';
+          btn.textContent = 'Crear cuenta'; btn.disabled = false;
+          return;
+        }
+        await saveUser(uname, { name, password: pass, predictions: {}, createdAt: Date.now() });
+        currentUser = uname;
+        startListening();
+      } catch(e) {
+        errEl.innerHTML = '<div class="error-msg">Error de conexión. Revisá tu internet.</div>';
+        btn.textContent = 'Crear cuenta'; btn.disabled = false;
+      }
+    };
+
+    window.__logout = () => {
+      if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+      currentUser = null; currentView = 'matches'; allUsers = {};
+      render();
+    };
+
+    window.__setView   = v => { currentView = v; render(); };
+    window.__setFilter = f => { matchFilter = f; render(); };
+
+    window.__savePred = async (mid) => {
+      const h = document.getElementById('h' + mid);
+      const a = document.getElementById('a' + mid);
+      if (!h || !a || h.value === '' || a.value === '') {
+        showToast('⚠️ Ingresá ambos marcadores'); return;
+      }
+      try {
+        await savePrediction(currentUser, mid, parseInt(h.value), parseInt(a.value));
+        showToast('✅ Pronóstico guardado');
+      } catch(e) {
+        showToast('❌ Error al guardar. Revisá tu conexión.');
+      }
+    };
+
+    // ── Arrancar ──
+    render();
+  </script>
+</body>
+</html>
