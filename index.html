@@ -40,34 +40,66 @@
     const CDN = 'https://paladarnegro.net/escudoteca/mundial2026/mundial2026/png/';
 
     const TEAMS = {
-      'Argentina':      { rank:1,  flag:'🇦🇷', crest: CDN+'argentina.png' },
-      'España':         { rank:2,  flag:'🇪🇸', crest: CDN+'espana.png' },
-      'Francia':        { rank:3,  flag:'🇫🇷', crest: CDN+'francia.png' },
-      'Inglaterra':     { rank:4,  flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', crest: CDN+'inglaterra.png' },
-      'Brasil':         { rank:5,  flag:'🇧🇷', crest: CDN+'brasil.png' },
-      'Portugal':       { rank:6,  flag:'🇵🇹', crest: CDN+'portugal.png' },
-      'Holanda':        { rank:7,  flag:'🇳🇱', crest: CDN+'paisesbajos.png' },
-      'Bélgica':        { rank:8,  flag:'🇧🇪', crest: CDN+'belgica.png' },
-      'Alemania':       { rank:12, flag:'🇩🇪', crest: CDN+'alemania.png' },
-      'Italia':         { rank:11, flag:'🇮🇹', crest: CDN+'italia.png' },
-      'Marruecos':      { rank:14, flag:'🇲🇦', crest: CDN+'marruecos.png' },
-      'Senegal':        { rank:18, flag:'🇸🇳', crest: CDN+'senegal.png' },
-      'México':         { rank:16, flag:'🇲🇽', crest: CDN+'mexico.png' },
-      'Uruguay':        { rank:20, flag:'🇺🇾', crest: CDN+'uruguay.png' },
-      'Suiza':          { rank:19, flag:'🇨🇭', crest: CDN+'suiza.png' },
-      'Dinamarca':      { rank:22, flag:'🇩🇰', crest: CDN+'dinamarca.png' },
-      'Australia':      { rank:23, flag:'🇦🇺', crest: CDN+'australia.png' },
-      'Corea del Sur':  { rank:24, flag:'🇰🇷', crest: CDN+'coreadelsur.png' },
-      'Polonia':        { rank:25, flag:'🇵🇱', crest: CDN+'polonia.png' },
-      'Japón':          { rank:15, flag:'🇯🇵', crest: CDN+'japon.png' },
-      'Ecuador':        { rank:42, flag:'🇪🇨', crest: CDN+'ecuador.png' },
-      'Túnez':          { rank:34, flag:'🇹🇳', crest: CDN+'tunez.png' },
-      'Arabia Saudita': { rank:58, flag:'🇸🇦', crest: CDN+'arabiasaudita.png' },
-      'Ghana':          { rank:65, flag:'🇬🇭', crest: CDN+'ghana.png' },
-      'Serbia':         { rank:33, flag:'🇷🇸', crest: CDN+'serbia.png' },
-      'Camerún':        { rank:43, flag:'🇨🇲', crest: CDN+'camerun.png' },
-      'Costa Rica':     { rank:50, flag:'🇨🇷', crest: CDN+'costarica.png' },
-      'Canadá':         { rank:47, flag:'🇨🇦', crest: CDN+'canada.png' },
+      // Grupo A
+      'México':          { rank:16, flag:'🇲🇽', crest: CDN+'mexico.png' },
+      'Sudáfrica':       { rank:60, flag:'🇿🇦', crest: CDN+'sudafrica.png' },
+      'Corea del Sur':   { rank:24, flag:'🇰🇷', crest: CDN+'coreadelsur.png' },
+      'Rep. Checa':      { rank:37, flag:'🇨🇿', crest: CDN+'republicacheca.png' },
+      // Grupo B
+      'Canadá':          { rank:47, flag:'🇨🇦', crest: CDN+'canada.png' },
+      'Bosnia y Herz.':  { rank:63, flag:'🇧🇦', crest: CDN+'bosnia.png' },
+      'Qatar':           { rank:70, flag:'🇶🇦', crest: CDN+'qatar.png' },
+      'Suiza':           { rank:19, flag:'🇨🇭', crest: CDN+'suiza.png' },
+      // Grupo C
+      'Brasil':          { rank:5,  flag:'🇧🇷', crest: CDN+'brasil.png' },
+      'Marruecos':       { rank:14, flag:'🇲🇦', crest: CDN+'marruecos.png' },
+      'Haití':           { rank:83, flag:'🇭🇹', crest: CDN+'haiti.png' },
+      'Escocia':         { rank:38, flag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿', crest: CDN+'escocia.png' },
+      // Grupo D
+      'Estados Unidos':  { rank:11, flag:'🇺🇸', crest: CDN+'usa.png' },
+      'Paraguay':        { rank:55, flag:'🇵🇾', crest: CDN+'paraguay.png' },
+      'Australia':       { rank:23, flag:'🇦🇺', crest: CDN+'australia.png' },
+      'Turquía':         { rank:29, flag:'🇹🇷', crest: CDN+'turquia.png' },
+      // Grupo E
+      'Alemania':        { rank:12, flag:'🇩🇪', crest: CDN+'alemania.png' },
+      'Curazao':         { rank:85, flag:'🇨🇼', crest: CDN+'curazao.png' },
+      'Costa de Marfil': { rank:48, flag:'🇨🇮', crest: CDN+'costa_de_marfil.png' },
+      'Ecuador':         { rank:42, flag:'🇪🇨', crest: CDN+'ecuador.png' },
+      // Grupo F
+      'Holanda':         { rank:7,  flag:'🇳🇱', crest: CDN+'paisesbajos.png' },
+      'Japón':           { rank:15, flag:'🇯🇵', crest: CDN+'japon.png' },
+      'Suecia':          { rank:26, flag:'🇸🇪', crest: CDN+'suecia.png' },
+      'Túnez':           { rank:34, flag:'🇹🇳', crest: CDN+'tunez.png' },
+      // Grupo G
+      'Bélgica':         { rank:8,  flag:'🇧🇪', crest: CDN+'belgica.png' },
+      'Egipto':          { rank:32, flag:'🇪🇬', crest: CDN+'egipto.png' },
+      'Irán':            { rank:21, flag:'🇮🇷', crest: CDN+'iran.png' },
+      'Nueva Zelanda':   { rank:91, flag:'🇳🇿', crest: CDN+'nuevazelanda.png' },
+      // Grupo H
+      'España':          { rank:2,  flag:'🇪🇸', crest: CDN+'espana.png' },
+      'Cabo Verde':      { rank:72, flag:'🇨🇻', crest: CDN+'cabo_verde.png' },
+      'Arabia Saudita':  { rank:58, flag:'🇸🇦', crest: CDN+'arabiasaudita.png' },
+      'Uruguay':         { rank:20, flag:'🇺🇾', crest: CDN+'uruguay.png' },
+      // Grupo I
+      'Francia':         { rank:3,  flag:'🇫🇷', crest: CDN+'francia.png' },
+      'Senegal':         { rank:18, flag:'🇸🇳', crest: CDN+'senegal.png' },
+      'Irak':            { rank:57, flag:'🇮🇶', crest: CDN+'irak.png' },
+      'Noruega':         { rank:29, flag:'🇳🇴', crest: CDN+'noruega.png' },
+      // Grupo J
+      'Argentina':       { rank:1,  flag:'🇦🇷', crest: CDN+'argentina.png' },
+      'Argelia':         { rank:41, flag:'🇩🇿', crest: CDN+'argelia.png' },
+      'Austria':         { rank:25, flag:'🇦🇹', crest: CDN+'austria.png' },
+      'Jordania':        { rank:65, flag:'🇯🇴', crest: CDN+'jordan.png' },
+      // Grupo K
+      'Portugal':        { rank:6,  flag:'🇵🇹', crest: CDN+'portugal.png' },
+      'RD del Congo':    { rank:56, flag:'🇨🇩', crest: CDN+'congo.png' },
+      'Uzbekistán':      { rank:74, flag:'🇺🇿', crest: CDN+'uzbekistan.png' },
+      'Colombia':        { rank:17, flag:'🇨🇴', crest: CDN+'colombia.png' },
+      // Grupo L
+      'Inglaterra':      { rank:4,  flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', crest: CDN+'inglaterra.png' },
+      'Croacia':         { rank:10, flag:'🇭🇷', crest: CDN+'croacia.png' },
+      'Ghana':           { rank:65, flag:'🇬🇭', crest: CDN+'ghana.png' },
+      'Panamá':          { rank:78, flag:'🇵🇦', crest: CDN+'panama.png' },
     };
 
     // ── Estado ──
@@ -81,28 +113,83 @@
     let unsubUsers   = null;
     let unsubRes     = null;
 
-    // ── Fixture ──
+    // ── Fixture oficial FIFA Mundial 2026 — Fase de Grupos ──
     const MATCHES = [
-      {id:1,  group:'A', home:'México',        away:'Polonia',       date:'2026-06-11', time:'18:00', venue:'Estadio Azteca'},
-      {id:2,  group:'A', home:'Arabia Saudita',away:'Argentina',     date:'2026-06-12', time:'15:00', venue:'Dallas'},
-      {id:3,  group:'B', home:'Francia',       away:'Australia',     date:'2026-06-12', time:'18:00', venue:'NY/NJ'},
-      {id:4,  group:'B', home:'Dinamarca',     away:'Túnez',         date:'2026-06-13', time:'15:00', venue:'Miami'},
-      {id:5,  group:'C', home:'Argentina',     away:'Polonia',       date:'2026-06-16', time:'21:00', venue:'Miami'},
-      {id:6,  group:'C', home:'México',        away:'Arabia Saudita',date:'2026-06-17', time:'15:00', venue:'Los Angeles'},
-      {id:7,  group:'D', home:'Brasil',        away:'Serbia',        date:'2026-06-14', time:'18:00', venue:'San Francisco'},
-      {id:8,  group:'D', home:'Suiza',         away:'Camerún',       date:'2026-06-15', time:'15:00', venue:'Seattle'},
-      {id:9,  group:'E', home:'España',        away:'Costa Rica',    date:'2026-06-15', time:'18:00', venue:'Boston'},
-      {id:10, group:'E', home:'Alemania',      away:'Japón',         date:'2026-06-16', time:'21:00', venue:'Kansas City'},
-      {id:11, group:'F', home:'Uruguay',       away:'Corea del Sur', date:'2026-06-17', time:'18:00', venue:'Dallas'},
-      {id:12, group:'F', home:'Portugal',      away:'Ghana',         date:'2026-06-18', time:'15:00', venue:'Filadelfia'},
-      {id:13, group:'G', home:'Inglaterra',    away:'Senegal',       date:'2026-06-19', time:'21:00', venue:'NY/NJ'},
-      {id:14, group:'G', home:'Holanda',       away:'Ecuador',       date:'2026-06-20', time:'18:00', venue:'Houston'},
-      {id:15, group:'H', home:'Italia',        away:'Marruecos',     date:'2026-06-21', time:'15:00', venue:'Los Angeles'},
-      {id:16, group:'H', home:'Bélgica',       away:'Canadá',        date:'2026-06-22', time:'18:00', venue:'Vancouver'},
-      {id:17, group:'A', home:'Argentina',     away:'México',        date:'2026-06-26', time:'20:00', venue:'Dallas'},
-      {id:18, group:'B', home:'Francia',       away:'Dinamarca',     date:'2026-06-26', time:'20:00', venue:'Miami'},
-      {id:19, group:'C', home:'España',        away:'Alemania',      date:'2026-06-30', time:'21:00', venue:'Los Angeles'},
-      {id:20, group:'D', home:'Brasil',        away:'Portugal',      date:'2026-07-01', time:'21:00', venue:'Miami'},
+      // ── FECHA 1 ──
+      {id:1,  group:'A', home:'México',          away:'Sudáfrica',        date:'2026-06-11', time:'16:00', venue:'Ciudad de México'},
+      {id:2,  group:'A', home:'Corea del Sur',   away:'Rep. Checa',       date:'2026-06-11', time:'23:00', venue:'Guadalajara'},
+      {id:3,  group:'B', home:'Canadá',          away:'Bosnia y Herz.',   date:'2026-06-12', time:'16:00', venue:'Toronto'},
+      {id:4,  group:'D', home:'Estados Unidos',  away:'Paraguay',         date:'2026-06-12', time:'22:00', venue:'Los Ángeles'},
+      {id:5,  group:'B', home:'Qatar',           away:'Suiza',            date:'2026-06-13', time:'16:00', venue:'San Francisco'},
+      {id:6,  group:'C', home:'Brasil',          away:'Marruecos',        date:'2026-06-13', time:'19:00', venue:'Nueva Jersey'},
+      {id:7,  group:'C', home:'Haití',           away:'Escocia',          date:'2026-06-13', time:'22:00', venue:'Boston'},
+      {id:8,  group:'D', home:'Australia',       away:'Turquía',          date:'2026-06-14', time:'01:00', venue:'Vancouver'},
+      {id:9,  group:'E', home:'Alemania',        away:'Curazao',          date:'2026-06-14', time:'14:00', venue:'Houston'},
+      {id:10, group:'F', home:'Holanda',         away:'Japón',            date:'2026-06-14', time:'17:00', venue:'Dallas'},
+      {id:11, group:'E', home:'Costa de Marfil', away:'Ecuador',          date:'2026-06-14', time:'20:00', venue:'Filadelfia'},
+      {id:12, group:'F', home:'Suecia',          away:'Túnez',            date:'2026-06-14', time:'23:00', venue:'Monterrey'},
+      {id:13, group:'H', home:'España',          away:'Cabo Verde',       date:'2026-06-15', time:'13:00', venue:'Atlanta'},
+      {id:14, group:'G', home:'Bélgica',         away:'Egipto',           date:'2026-06-15', time:'16:00', venue:'Seattle'},
+      {id:15, group:'H', home:'Arabia Saudita',  away:'Uruguay',          date:'2026-06-15', time:'19:00', venue:'Miami'},
+      {id:16, group:'G', home:'Irán',            away:'Nueva Zelanda',    date:'2026-06-15', time:'22:00', venue:'Los Ángeles'},
+      {id:17, group:'I', home:'Francia',         away:'Senegal',          date:'2026-06-16', time:'16:00', venue:'Nueva Jersey'},
+      {id:18, group:'I', home:'Irak',            away:'Noruega',          date:'2026-06-16', time:'19:00', venue:'Boston'},
+      {id:19, group:'J', home:'Argentina',       away:'Argelia',          date:'2026-06-16', time:'22:00', venue:'Kansas City'},
+      {id:20, group:'J', home:'Austria',         away:'Jordania',         date:'2026-06-17', time:'01:00', venue:'San Francisco'},
+      {id:21, group:'K', home:'Portugal',        away:'RD del Congo',     date:'2026-06-17', time:'14:00', venue:'Houston'},
+      {id:22, group:'L', home:'Inglaterra',      away:'Croacia',          date:'2026-06-17', time:'17:00', venue:'Dallas'},
+      {id:23, group:'L', home:'Ghana',           away:'Panamá',           date:'2026-06-17', time:'20:00', venue:'Toronto'},
+      {id:24, group:'K', home:'Uzbekistán',      away:'Colombia',         date:'2026-06-17', time:'23:00', venue:'Ciudad de México'},
+      // ── FECHA 2 ──
+      {id:25, group:'A', home:'Rep. Checa',      away:'Sudáfrica',        date:'2026-06-18', time:'13:00', venue:'Atlanta'},
+      {id:26, group:'B', home:'Suiza',           away:'Bosnia y Herz.',   date:'2026-06-18', time:'16:00', venue:'Los Ángeles'},
+      {id:27, group:'B', home:'Canadá',          away:'Qatar',            date:'2026-06-18', time:'19:00', venue:'Vancouver'},
+      {id:28, group:'A', home:'México',          away:'Corea del Sur',    date:'2026-06-18', time:'22:00', venue:'Guadalajara'},
+      {id:29, group:'D', home:'Estados Unidos',  away:'Australia',        date:'2026-06-19', time:'16:00', venue:'Seattle'},
+      {id:30, group:'C', home:'Escocia',         away:'Marruecos',        date:'2026-06-19', time:'19:00', venue:'Boston'},
+      {id:31, group:'C', home:'Brasil',          away:'Haití',            date:'2026-06-19', time:'21:30', venue:'Filadelfia'},
+      {id:32, group:'D', home:'Turquía',         away:'Paraguay',         date:'2026-06-20', time:'00:00', venue:'San Francisco'},
+      {id:33, group:'F', home:'Holanda',         away:'Suecia',           date:'2026-06-20', time:'14:00', venue:'Houston'},
+      {id:34, group:'E', home:'Alemania',        away:'Costa de Marfil',  date:'2026-06-20', time:'17:00', venue:'Toronto'},
+      {id:35, group:'E', home:'Ecuador',         away:'Curazao',          date:'2026-06-20', time:'23:00', venue:'Kansas City'},
+      {id:36, group:'F', home:'Túnez',           away:'Japón',            date:'2026-06-21', time:'01:00', venue:'Monterrey'},
+      {id:37, group:'H', home:'España',          away:'Arabia Saudita',   date:'2026-06-21', time:'13:00', venue:'Atlanta'},
+      {id:38, group:'G', home:'Bélgica',         away:'Irán',             date:'2026-06-21', time:'16:00', venue:'Los Ángeles'},
+      {id:39, group:'H', home:'Uruguay',         away:'Cabo Verde',       date:'2026-06-21', time:'19:00', venue:'Miami'},
+      {id:40, group:'G', home:'Nueva Zelanda',   away:'Egipto',           date:'2026-06-21', time:'22:00', venue:'Vancouver'},
+      {id:41, group:'J', home:'Argentina',       away:'Austria',          date:'2026-06-22', time:'14:00', venue:'Dallas'},
+      {id:42, group:'I', home:'Francia',         away:'Irak',             date:'2026-06-22', time:'18:00', venue:'Filadelfia'},
+      {id:43, group:'I', home:'Noruega',         away:'Senegal',          date:'2026-06-22', time:'21:00', venue:'Nueva Jersey'},
+      {id:44, group:'J', home:'Jordania',        away:'Argelia',          date:'2026-06-23', time:'00:00', venue:'San Francisco'},
+      {id:45, group:'K', home:'Portugal',        away:'Uzbekistán',       date:'2026-06-23', time:'14:00', venue:'Houston'},
+      {id:46, group:'L', home:'Inglaterra',      away:'Ghana',            date:'2026-06-23', time:'17:00', venue:'Boston'},
+      {id:47, group:'L', home:'Panamá',          away:'Croacia',          date:'2026-06-23', time:'20:00', venue:'Toronto'},
+      {id:48, group:'K', home:'Colombia',        away:'RD del Congo',     date:'2026-06-23', time:'23:00', venue:'Guadalajara'},
+      // ── FECHA 3 ──
+      {id:49, group:'B', home:'Suiza',           away:'Canadá',           date:'2026-06-24', time:'16:00', venue:'Vancouver'},
+      {id:50, group:'B', home:'Bosnia y Herz.',  away:'Qatar',            date:'2026-06-24', time:'16:00', venue:'San Francisco'},
+      {id:51, group:'A', home:'Sudáfrica',       away:'Corea del Sur',    date:'2026-06-25', time:'14:00', venue:'Guadalajara'},
+      {id:52, group:'A', home:'México',          away:'Rep. Checa',       date:'2026-06-25', time:'14:00', venue:'Ciudad de México'},
+      {id:53, group:'C', home:'Marruecos',       away:'Haití',            date:'2026-06-25', time:'18:00', venue:'Boston'},
+      {id:54, group:'C', home:'Escocia',         away:'Brasil',           date:'2026-06-25', time:'18:00', venue:'Nueva Jersey'},
+      {id:55, group:'D', home:'Australia',       away:'Paraguay',         date:'2026-06-26', time:'14:00', venue:'Vancouver'},
+      {id:56, group:'D', home:'Estados Unidos',  away:'Turquía',          date:'2026-06-26', time:'14:00', venue:'Los Ángeles'},
+      {id:57, group:'E', home:'Curazao',         away:'Costa de Marfil',  date:'2026-06-26', time:'18:00', venue:'Filadelfia'},
+      {id:58, group:'E', home:'Ecuador',         away:'Alemania',         date:'2026-06-26', time:'18:00', venue:'Houston'},
+      {id:59, group:'F', home:'Japón',           away:'Suecia',           date:'2026-06-27', time:'14:00', venue:'Dallas'},
+      {id:60, group:'F', home:'Túnez',           away:'Holanda',          date:'2026-06-27', time:'14:00', venue:'Monterrey'},
+      {id:61, group:'G', home:'Egipto',          away:'Bélgica',          date:'2026-06-27', time:'18:00', venue:'Seattle'},
+      {id:62, group:'G', home:'Nueva Zelanda',   away:'Irán',             date:'2026-06-27', time:'18:00', venue:'Los Ángeles'},
+      {id:63, group:'H', home:'Cabo Verde',      away:'Arabia Saudita',   date:'2026-06-28', time:'14:00', venue:'Miami'},
+      {id:64, group:'H', home:'Uruguay',         away:'España',           date:'2026-06-28', time:'14:00', venue:'Atlanta'},
+      {id:65, group:'I', home:'Senegal',         away:'Irak',             date:'2026-06-28', time:'18:00', venue:'Nueva Jersey'},
+      {id:66, group:'I', home:'Noruega',         away:'Francia',          date:'2026-06-28', time:'18:00', venue:'Boston'},
+      {id:67, group:'J', home:'Argelia',         away:'Austria',          date:'2026-06-29', time:'14:00', venue:'San Francisco'},
+      {id:68, group:'J', home:'Jordania',        away:'Argentina',        date:'2026-06-29', time:'14:00', venue:'Kansas City'},
+      {id:69, group:'K', home:'RD del Congo',    away:'Uzbekistán',       date:'2026-06-29', time:'18:00', venue:'Guadalajara'},
+      {id:70, group:'K', home:'Colombia',        away:'Portugal',         date:'2026-06-29', time:'18:00', venue:'Houston'},
+      {id:71, group:'L', home:'Croacia',         away:'Ghana',            date:'2026-06-30', time:'14:00', venue:'Toronto'},
+      {id:72, group:'L', home:'Panamá',          away:'Inglaterra',       date:'2026-06-30', time:'14:00', venue:'Dallas'},
     ];
 
     // ── Helpers ──
@@ -150,16 +237,16 @@
     // ── Bloque de equipo con escudo real ──
     function teamBlock(name) {
       const t = TEAMS[name] || { flag:'⚽', rank:null, crest:'' };
+      const imgHtml = t.crest
+        ? `<img src="${t.crest}" class="team-crest" alt="${name}"
+             onload="this.style.opacity='1';this.nextElementSibling.style.display='none'"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+             style="opacity:0;transition:opacity 0.3s">
+           <div class="team-crest-fallback" style="display:flex">${t.flag}</div>`
+        : `<div class="team-crest-fallback" style="display:flex">${t.flag}</div>`;
       return `
         <div class="team">
-          <div class="team-crest-wrap">
-            <img
-              src="${t.crest}"
-              class="team-crest"
-              alt="${name}"
-              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <div class="team-crest-fallback">${t.flag}</div>
-          </div>
+          <div class="team-crest-wrap">${imgHtml}</div>
           <span class="team-name">${name}</span>
           ${t.rank ? `<span class="team-rank">#${t.rank} FIFA</span>` : ''}
         </div>`;
