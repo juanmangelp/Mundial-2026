@@ -555,3 +555,17 @@ input[type=number] { -moz-appearance: textfield; }
   margin: 0 auto 8px;
   filter: drop-shadow(0 2px 12px rgba(245,200,66,0.25));
 }
+
+/* ── PENDING APPROVAL SCREEN ── */
+.admin-player-row .btn-approve {
+  background: var(--green); color: #fff; border: none;
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+  font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700;
+  touch-action: manipulation;
+}
+.admin-player-row .btn-reject {
+  background: none; border: 1px solid rgba(218,54,51,0.5);
+  color: #f97070; padding: 6px 10px; border-radius: 6px;
+  cursor: pointer; font-family: 'Barlow', sans-serif; font-size: 12px;
+  touch-action: manipulation;
+}

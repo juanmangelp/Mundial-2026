@@ -274,7 +274,7 @@
 
     // ── Pronósticos revelados cuando el partido empieza ──
     function renderRevealedPreds(matchId, res) {
-      const players = Object.entries(allUsers).filter(([k])=>!Object.keys(PURE_ADMINS).includes(k));
+      const players = Object.entries(allUsers).filter(([k,u])=>!Object.keys(PURE_ADMINS).includes(k)&&u.status==='approved');
       if (!players.length) return '';
       const rows = players.map(([key, u]) => {
         const pred = u.predictions?.[matchId];
@@ -338,7 +338,7 @@
           <button class="nav-btn ${currentView==='mypreds'?'active':''}" onclick="window.__setView('mypreds')">📋 Mis pronósticos</button>
           ${isAdmin()?`<button class="nav-btn admin-nav ${currentView==='admin'?'active':''}" onclick="window.__setView('admin')" style="position:relative">
             ⚙️ Admin
-            ${(()=>{const p=MATCHES.filter(m=>{const now=new Date();const dt=new Date(m.date+'T'+m.time+':00');return (now-dt)/60000>110&&!results[m.id];}).length;return p>0?`<span style="position:absolute;top:6px;right:4px;background:#da3633;color:#fff;font-size:9px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1">${p}</span>`:'';})()}
+            ${(()=>{const pendingResults=MATCHES.filter(m=>{const now=new Date();const dt=new Date(m.date+'T'+m.time+':00');return (now-dt)/60000>110&&!results[m.id];}).length;const pendingUsers=Object.values(allUsers).filter(u=>u.status==='pending'||!u.status).length;const p=pendingResults+pendingUsers;return p>0?`<span style="position:absolute;top:6px;right:4px;background:#da3633;color:#fff;font-size:9px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1">${p}</span>`:'';})()}
           </button>`:''}
         </nav>
         <div class="main">${renderView()}</div>`;
@@ -446,7 +446,7 @@
 
     // ── TABLA ──
     function renderLeaderboard() {
-      const ranking=Object.entries(allUsers).filter(([k])=>!Object.keys(PURE_ADMINS).includes(k))
+      const ranking=Object.entries(allUsers).filter(([k,u])=>!Object.keys(PURE_ADMINS).includes(k)&&u.status==='approved')
         .map(([key,u])=>({key,name:u.name,...calcScore(u),predCount:Object.keys(u.predictions||{}).length}))
         .sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
       const rows=ranking.map((u,i)=>`<tr class="${u.key===currentUser?'highlight-row':''}">
@@ -561,18 +561,87 @@
             </div>`;
           }).join('')}
         </div>
-        <div class="admin-section-title" style="margin-top:24px">👥 Jugadores (${players.length})</div>
-        <div class="admin-players">
-          ${players.length?players.map(([key,u])=>{const s=calcScore(u);return `
-            <div class="admin-player-row">
-              <div class="avatar" style="width:34px;height:34px;font-size:12px">${u.name.substring(0,2).toUpperCase()}</div>
-              <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${u.name}</div><div style="font-size:11px;color:var(--muted)">@${key} · ${Object.keys(u.predictions||{}).length} pronósticos</div></div>
-              <div style="text-align:right;flex-shrink:0"><div class="pts" style="font-size:18px">${s.pts}</div><div class="pts-label">pts</div></div>
-            </div>`;}).join(''):'<div style="color:var(--muted);padding:16px;font-size:13px">Sin jugadores aún</div>'}
-        </div>`;
+        ${(()=>{
+          const pending = players.filter(([k,u])=>u.status==='pending'||!u.status);
+          const approved = players.filter(([k,u])=>u.status==='approved');
+          const rejected = players.filter(([k,u])=>u.status==='rejected');
+
+          let html = '';
+
+          // Pendientes
+          if(pending.length) {
+            html += `<div class="admin-section-title" style="margin-top:24px;color:#f97070">
+              🔴 Esperando aprobación (${pending.length})
+            </div>
+            <div class="admin-players" style="margin-bottom:12px">
+              ${pending.map(([key,u])=>`
+                <div class="admin-player-row">
+                  <div class="avatar" style="width:34px;height:34px;font-size:12px;background:#da3633">${u.name.substring(0,2).toUpperCase()}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;font-size:13px">${u.name}</div>
+                    <div style="font-size:11px;color:var(--muted)">@${key}</div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0">
+                    <button onclick="window.__approveUser('${key}')" style="background:var(--green);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;touch-action:manipulation">✅ Aprobar</button>
+                    <button onclick="window.__rejectUser('${key}')" style="background:none;border:1px solid rgba(218,54,51,0.5);color:#f97070;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;touch-action:manipulation">✗</button>
+                  </div>
+                </div>`).join('')}
+            </div>`;
+          }
+
+          // Aprobados
+          html += `<div class="admin-section-title" style="margin-top:${pending.length?'8px':'24px'}">
+            👥 Jugadores aprobados (${approved.length})
+          </div>
+          <div class="admin-players">
+            ${approved.length ? approved.map(([key,u])=>{const s=calcScore(u);return `
+              <div class="admin-player-row">
+                <div class="avatar" style="width:34px;height:34px;font-size:12px">${u.name.substring(0,2).toUpperCase()}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:600;font-size:13px">${u.name}</div>
+                  <div style="font-size:11px;color:var(--muted)">@${key} · ${Object.keys(u.predictions||{}).length} pronósticos</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0"><div class="pts" style="font-size:18px">${s.pts}</div><div class="pts-label">pts</div></div>
+              </div>`;}).join('') : '<div style="color:var(--muted);padding:16px;font-size:13px">Sin jugadores aprobados aún</div>'}
+          </div>`;
+
+          // Rechazados
+          if(rejected.length) {
+            html += `<div class="admin-section-title" style="margin-top:12px;color:var(--muted)">
+              🚫 Rechazados (${rejected.length})
+            </div>
+            <div class="admin-players">
+              ${rejected.map(([key,u])=>`
+                <div class="admin-player-row" style="opacity:0.5">
+                  <div class="avatar" style="width:34px;height:34px;font-size:12px;background:var(--dark3)">${u.name.substring(0,2).toUpperCase()}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;font-size:13px">${u.name}</div>
+                    <div style="font-size:11px;color:var(--muted)">@${key}</div>
+                  </div>
+                  <button onclick="window.__approveUser('${key}')" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:11px;touch-action:manipulation">Rehabilitar</button>
+                </div>`).join('')}
+            </div>`;
+          }
+          return html;
+        })()}`;
     }
 
     // ── LOGIN ──
+
+    // ── Pantalla de espera de aprobación ──
+    function renderPendingScreen(name) {
+      return `<div class="login-page"><div class="login-box">
+        <img src="gindangas.png" alt="Gindangas" class="login-logo">
+        <div style="font-size:48px;margin:16px 0">⏳</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);letter-spacing:1px;margin-bottom:8px">Cuenta pendiente</div>
+        <div style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:24px">
+          Hola <strong style="color:var(--text)">${name}</strong>, tu cuenta está esperando aprobación del administrador.<br><br>
+          Avisale a Juan Manuel para que te habilite.
+        </div>
+        <button class="btn-primary" onclick="window.__logout()" style="background:var(--dark3);color:var(--muted);border:1px solid var(--border)">Volver al inicio</button>
+      </div></div>`;
+    }
+
     function renderLogin() {
       return `<div class="login-page"><div class="login-box">
         <img src="gindangas.png" alt="Gindangas" class="login-logo">
@@ -613,6 +682,20 @@
       try{
         const snap=await getDoc(doc(db,'users',user));
         if(!snap.exists()||snap.data().password!==pass){errEl.innerHTML='<div class="error-msg">Usuario o contraseña incorrectos</div>';btn.textContent='Entrar al prode';btn.disabled=false;return;}
+        const userData = snap.data();
+        // Player-admins bypass status check
+        if(!PLAYER_ADMINS.includes(user)) {
+          if(userData.status==='pending'||!userData.status){
+            document.getElementById('app').innerHTML=renderPendingScreen(userData.name);
+            btn.textContent='Entrar al prode';btn.disabled=false;
+            return;
+          }
+          if(userData.status==='rejected'){
+            errEl.innerHTML='<div class="error-msg">Tu cuenta fue rechazada por el administrador.</div>';
+            btn.textContent='Entrar al prode';btn.disabled=false;
+            return;
+          }
+        }
         currentUser=user;startListening();
       }catch(e){errEl.innerHTML='<div class="error-msg">Error de conexión</div>';btn.textContent='Entrar al prode';btn.disabled=false;}
     };
@@ -629,8 +712,11 @@
       try{
         const snap=await getDoc(doc(db,'users',uname));
         if(snap.exists()){errEl.innerHTML='<div class="error-msg">Ese usuario ya existe</div>';btn.textContent='Crear cuenta';btn.disabled=false;return;}
-        await setDoc(doc(db,'users',uname),{name,password:pass,predictions:{},createdAt:Date.now()});
-        currentUser=uname;startListening();
+        await setDoc(doc(db,'users',uname),{name,password:pass,predictions:{},createdAt:Date.now(),status:'pending'});
+        // Show waiting screen instead of logging in
+        currentUser=null;
+        document.getElementById('app').innerHTML=renderPendingScreen(name);
+        return;
       }catch(e){errEl.innerHTML='<div class="error-msg">Error de conexión</div>';btn.textContent='Crear cuenta';btn.disabled=false;}
     };
 
@@ -665,6 +751,22 @@
       if(!confirm('¿Borrar el resultado?')) return;
       try{const snap=await getDoc(doc(db,'config','results'));if(snap.exists()){const d=snap.data();delete d[mid];await setDoc(doc(db,'config','results'),d);}showToast('🗑 Resultado borrado');}
       catch(e){showToast('❌ Error al borrar','err');}
+    };
+
+
+    window.__approveUser = async (uname) => {
+      try {
+        await updateDoc(doc(db,'users',uname),{status:'approved'});
+        showToast('✅ Usuario aprobado');
+      } catch(e) { showToast('❌ Error','err'); }
+    };
+
+    window.__rejectUser = async (uname) => {
+      if(!confirm('¿Rechazar a este usuario? No podrá ingresar al prode.')) return;
+      try {
+        await updateDoc(doc(db,'users',uname),{status:'rejected'});
+        showToast('🚫 Usuario rechazado');
+      } catch(e) { showToast('❌ Error','err'); }
     };
 
     render();
