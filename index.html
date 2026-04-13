@@ -36,7 +36,10 @@
     const firebaseApp = initializeApp(firebaseConfig);
     const db = getFirestore(firebaseApp);
 
-    const ADMINS = { 'admin': 'admin2026', 'juanman': 'juajua22' };
+    // Admin puro (sin cuenta Firestore, no aparece en tabla)
+    const PURE_ADMINS = { 'admin': 'admin2026' };
+    // Jugadores con permisos admin (tienen cuenta Firestore, SÍ aparecen en tabla y pronósticos)
+    const PLAYER_ADMINS = ['juanman'];
     const ADMIN_USER = 'admin';
 
     const CDN = 'https://paladarnegro.net/escudoteca/mundial2026/mundial2026/png/';
@@ -189,7 +192,7 @@
     let allUsers = {}, results = {}, groupStats = {};
     let unsubUsers = null, unsubRes = null;
 
-    const isAdmin = () => Object.keys(ADMINS).includes(currentUser);
+    const isAdmin = () => Object.keys(PURE_ADMINS).includes(currentUser) || PLAYER_ADMINS.includes(currentUser);
 
     function getMatchStatus(m) {
       const diff = (new Date(`${m.date}T${m.time}:00`) - new Date()) / 60000;
@@ -271,7 +274,7 @@
 
     // ── Pronósticos revelados cuando el partido empieza ──
     function renderRevealedPreds(matchId, res) {
-      const players = Object.entries(allUsers).filter(([k])=>!Object.keys(ADMINS).includes(k));
+      const players = Object.entries(allUsers).filter(([k])=>!Object.keys(PURE_ADMINS).includes(k));
       if (!players.length) return '';
       const rows = players.map(([key, u]) => {
         const pred = u.predictions?.[matchId];
@@ -317,7 +320,10 @@
       const name = allUsers[currentUser]?.name || currentUser;
       app.innerHTML = `
         <div class="header">
-          <div class="logo">🏆 PRODE GINDANGA<span>Mundial 2026</span></div>
+          <div class="logo">
+            <img src="gindangas.png" class="logo-img" alt="Gindangas">
+            <span class="logo-sub">⚽ PRODE MUNDIAL 2026</span>
+          </div>
           <div class="user-info">
             ${isAdmin()?'<span class="admin-badge">⚙️ ADMIN</span>':''}
             <div class="avatar">${name.substring(0,2).toUpperCase()}</div>
@@ -440,7 +446,7 @@
 
     // ── TABLA ──
     function renderLeaderboard() {
-      const ranking=Object.entries(allUsers).filter(([k])=>!Object.keys(ADMINS).includes(k))
+      const ranking=Object.entries(allUsers).filter(([k])=>!Object.keys(PURE_ADMINS).includes(k))
         .map(([key,u])=>({key,name:u.name,...calcScore(u),predCount:Object.keys(u.predictions||{}).length}))
         .sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
       const rows=ranking.map((u,i)=>`<tr class="${u.key===currentUser?'highlight-row':''}">
@@ -501,7 +507,7 @@
     // ── ADMIN ──
     function renderAdmin() {
       const played=MATCHES.filter(m=>results[m.id]),pending=MATCHES.filter(m=>!results[m.id]);
-      const players=Object.entries(allUsers).filter(([k])=>!Object.keys(ADMINS).includes(k));
+      const players=Object.entries(allUsers).filter(([k])=>!Object.keys(PURE_ADMINS).includes(k));
       const filteredMatches=MATCHES.filter(m=>{
         if(adminFilter==='pending') return !results[m.id];
         if(adminFilter==='played')  return !!results[m.id];
@@ -603,7 +609,7 @@
       const pass=document.getElementById('inp-pass').value;
       const errEl=document.getElementById('login-error'),btn=document.getElementById('btn-submit');
       if(!user||!pass){errEl.innerHTML='<div class="error-msg">Completá todos los campos</div>';return;}
-      if(ADMINS[user]&&ADMINS[user]===pass){currentUser=user;if(!allUsers[user])allUsers[user]={name:user==='juanman'?'Juan Manuel':'Admin',predictions:{}};startListening();return;}
+      if(PURE_ADMINS[user]&&PURE_ADMINS[user]===pass){currentUser=user;if(!allUsers[user])allUsers[user]={name:'Admin',predictions:{}};startListening();return;}
       btn.textContent='Verificando...';btn.disabled=true;
       try{
         const snap=await getDoc(doc(db,'users',user));
@@ -619,7 +625,7 @@
       const errEl=document.getElementById('login-error'),btn=document.getElementById('btn-submit');
       if(!name||!uname||!pass){errEl.innerHTML='<div class="error-msg">Completá todos los campos</div>';return;}
       if(pass.length<4){errEl.innerHTML='<div class="error-msg">Contraseña mínimo 4 caracteres</div>';return;}
-      if(Object.keys(ADMINS).includes(uname)){errEl.innerHTML='<div class="error-msg">Ese usuario no está disponible</div>';return;}
+      if(Object.keys(PURE_ADMINS).includes(uname)){errEl.innerHTML='<div class="error-msg">Ese usuario no está disponible</div>';return;}
       btn.textContent='Creando...';btn.disabled=true;
       try{
         const snap=await getDoc(doc(db,'users',uname));

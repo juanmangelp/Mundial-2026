@@ -514,3 +514,33 @@ input[type=number] { -moz-appearance: textfield; }
 
 /* ── ADMIN NAV BADGE ── */
 .nav-btn.admin-nav { position: relative; }
+
+/* ── LOGO GINDANGAS ── */
+.logo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0px;
+  flex: 1;
+  min-width: 0;
+}
+.logo-img {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+  display: block;
+  filter: drop-shadow(0 1px 4px rgba(245,200,66,0.3));
+}
+@media (min-width: 480px) {
+  .logo-img { height: 42px; }
+}
+.logo-sub {
+  font-family: 'Barlow', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(245,200,66,0.55);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: -2px;
+}
