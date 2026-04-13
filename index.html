@@ -756,17 +756,23 @@
 
     window.__approveUser = async (uname) => {
       try {
-        await updateDoc(doc(db,'users',uname),{status:'approved'});
+        await setDoc(doc(db,'users',uname),{status:'approved'},{merge:true});
         showToast('✅ Usuario aprobado');
-      } catch(e) { showToast('❌ Error','err'); }
+      } catch(e) {
+        console.error('approve error:',e);
+        showToast('❌ Error: ' + e.message,'err');
+      }
     };
 
     window.__rejectUser = async (uname) => {
       if(!confirm('¿Rechazar a este usuario? No podrá ingresar al prode.')) return;
       try {
-        await updateDoc(doc(db,'users',uname),{status:'rejected'});
+        await setDoc(doc(db,'users',uname),{status:'rejected'},{merge:true});
         showToast('🚫 Usuario rechazado');
-      } catch(e) { showToast('❌ Error','err'); }
+      } catch(e) {
+        console.error('reject error:',e);
+        showToast('❌ Error: ' + e.message,'err');
+      }
     };
 
     render();
