@@ -544,3 +544,14 @@ input[type=number] { -moz-appearance: textfield; }
   text-transform: uppercase;
   margin-top: -2px;
 }
+
+/* ── LOGIN LOGO ── */
+.login-logo {
+  width: 80%;
+  max-width: 280px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 8px;
+  filter: drop-shadow(0 2px 12px rgba(245,200,66,0.25));
+}
