@@ -642,8 +642,16 @@
     window.__savePred = async (mid) => {
       const h=document.getElementById('h'+mid),a=document.getElementById('a'+mid);
       if(!h||!a||h.value===''||a.value===''){showToast('⚠️ Ingresá ambos marcadores','err');return;}
-      try{await updateDoc(doc(db,'users',currentUser),{[`predictions.${mid}`]:{home:parseInt(h.value),away:parseInt(a.value)}});showToast('✅ Pronóstico guardado');}
-      catch(e){showToast('❌ Error al guardar','err');}
+      try{
+        await updateDoc(doc(db,'users',currentUser),{[`predictions.${mid}`]:{home:parseInt(h.value),away:parseInt(a.value)}});
+        showToast('✅ Pronóstico guardado');
+      } catch(e) {
+        if(e.code==='permission-denied'){
+          showToast('🚫 El partido ya empezó, no podés modificar','err');
+        } else {
+          showToast('❌ Error al guardar','err');
+        }
+      }
     };
 
     window.__saveResult = async (mid) => {
