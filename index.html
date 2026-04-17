@@ -20,7 +20,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
-      getFirestore, doc, getDoc, setDoc, updateDoc,
+      getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
       collection, onSnapshot, addDoc, query, orderBy, limit, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -787,6 +787,7 @@
                   <div style="display:flex;gap:6px;flex-shrink:0">
                     <button onclick="window.__approveUser('${key}')" style="background:var(--green);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;touch-action:manipulation">✅ Aprobar</button>
                     <button onclick="window.__rejectUser('${key}')" style="background:none;border:1px solid rgba(218,54,51,0.5);color:#f97070;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;touch-action:manipulation">✗</button>
+                    <button onclick="window.__deleteUser('${key}')" title="Borrar usuario" style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation">🗑</button>
                   </div>
                 </div>`).join('')}
             </div>`;
@@ -804,7 +805,11 @@
                   <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px">${u.club?clubBadge(u.club,16):''}${u.name}</div>
                   <div style="font-size:11px;color:var(--muted)">@${key} · ${Object.keys(u.predictions||{}).length} pronósticos</div>
                 </div>
-                <div style="text-align:right;flex-shrink:0"><div class="pts" style="font-size:18px">${s.pts}</div><div class="pts-label">pts</div></div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <div style="text-align:right"><div class="pts" style="font-size:18px">${s.pts}</div><div class="pts-label">pts</div></div>
+                  <button onclick="window.__deleteUser('${key}')" title="Borrar usuario"
+                    style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;flex-shrink:0">🗑</button>
+                </div>
               </div>`;}).join('') : '<div style="color:var(--muted);padding:16px;font-size:13px">Sin jugadores aprobados aún</div>'}
           </div>`;
 
@@ -821,7 +826,10 @@
                     <div style="font-weight:600;font-size:13px">${u.name}</div>
                     <div style="font-size:11px;color:var(--muted)">@${key}</div>
                   </div>
-                  <button onclick="window.__approveUser('${key}')" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:11px;touch-action:manipulation">Rehabilitar</button>
+                  <div style="display:flex;gap:6px">
+                    <button onclick="window.__approveUser('${key}')" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:11px;touch-action:manipulation">Rehabilitar</button>
+                    <button onclick="window.__deleteUser('${key}')" title="Borrar usuario" style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation">🗑</button>
+                  </div>
                 </div>`).join('')}
             </div>`;
           }
@@ -857,8 +865,24 @@
         <div class="input-group"><label>Contraseña</label>
           <input type="password" id="inp-pass" placeholder="••••••••"
             autocomplete="${isRegister?'new-password':'current-password'}"
-            onkeydown="if(event.key==='Enter')${isRegister?'window.__doRegister()':'window.__doLogin()'}">
+            onkeydown="if(event.key==='Enter'&&!${isRegister})window.__doLogin()">
         </div>
+        ${isRegister?`
+        <div class="input-group">
+          <label>¿De qué equipo sos? <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+          <div class="reg-club-grid" id="reg-club-grid">
+            ${CLUBS.map(c=>`
+              <div class="reg-club-option" id="rco-${c.id}" onclick="window.__selectRegClub('${c.id}')">
+                <img src="${c.crest}" style="width:36px;height:36px;object-fit:contain"
+                  onload="this.style.opacity='1';this.nextElementSibling.style.display='none'"
+                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                  style="opacity:0;transition:opacity 0.2s">
+                <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;font-size:22px">⚽</div>
+                <span style="font-size:8px;color:var(--muted);text-align:center;line-height:1.2;margin-top:2px">${c.name}</span>
+              </div>`).join('')}
+          </div>
+          <div id="reg-club-selected" style="display:none;margin-top:8px;font-size:12px;color:var(--green-light);text-align:center"></div>
+        </div>`:''}
         <button class="btn-primary" id="btn-submit" onclick="${isRegister?'window.__doRegister()':'window.__doLogin()'}">
           ${isRegister?'Crear cuenta':'Entrar al prode'}
         </button>
@@ -870,7 +894,21 @@
     }
 
     // ── ACCIONES ──
-    window.__toggleMode     = ()=>{ isRegister=!isRegister; render(); };
+    window.__toggleMode = ()=>{ isRegister=!isRegister; render(); };
+
+    window.__selectRegClub = (clubId) => {
+      // Deselect all
+      document.querySelectorAll('.reg-club-option').forEach(el => el.classList.remove('selected'));
+      // Select clicked
+      const el = document.getElementById('rco-'+clubId);
+      if(el) el.classList.add('selected');
+      // Store selection
+      window.__regClub = clubId;
+      // Show label
+      const club = CLUBS.find(c=>c.id===clubId);
+      const sel = document.getElementById('reg-club-selected');
+      if(sel && club) { sel.style.display='block'; sel.innerHTML='✓ '+club.name; }
+    };
     window.__setView        = v =>{ currentView=v; render(); };
     window.__setFilter      = f =>{ matchFilter=f; render(); };
     window.__setAdminFilter = f =>{ adminFilter=f; render(); };
@@ -915,7 +953,8 @@
       try{
         const snap=await getDoc(doc(db,'users',uname));
         if(snap.exists()){errEl.innerHTML='<div class="error-msg">Ese usuario ya existe</div>';btn.textContent='Crear cuenta';btn.disabled=false;return;}
-        await setDoc(doc(db,'users',uname),{name,password:pass,predictions:{},createdAt:Date.now(),status:'pending'});
+        const regClub = window.__regClub || null;
+        await setDoc(doc(db,'users',uname),{name,password:pass,predictions:{},createdAt:Date.now(),status:'pending',...(regClub?{club:regClub}:{})});
         // Show waiting screen instead of logging in
         currentUser=null;
         document.getElementById('app').innerHTML=renderPendingScreen(name);
@@ -973,6 +1012,16 @@
         });
       } catch(e) {
         showToast('❌ Error al enviar','err');
+      }
+    };
+
+    window.__deleteUser = async (uname) => {
+      if(!confirm(`¿Borrar el usuario @${uname}? Se eliminan sus datos y pronósticos. Esta acción no se puede deshacer.`)) return;
+      try {
+        await deleteDoc(doc(db,'users',uname));
+        showToast('🗑 Usuario @'+uname+' eliminado');
+      } catch(e) {
+        showToast('❌ Error al borrar: '+e.message,'err');
       }
     };
 
