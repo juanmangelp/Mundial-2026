@@ -21,7 +21,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
       getFirestore, doc, getDoc, setDoc, updateDoc,
-      collection, onSnapshot
+      collection, onSnapshot, addDoc, query, orderBy, limit, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -43,6 +43,37 @@
     const ADMIN_USER = 'admin';
 
     const CDN = 'https://paladarnegro.net/escudoteca/mundial2026/mundial2026/png/';
+    const CDN_ARG = 'https://paladarnegro.net/escudoteca/argentina/primeradivision/png/';
+
+    const CLUBS = [
+      { id:'river',          name:'River Plate',          crest: CDN_ARG+'river.png' },
+      { id:'boca',           name:'Boca Juniors',          crest: CDN_ARG+'boca_2026.png' },
+      { id:'racing',         name:'Racing Club',           crest: CDN_ARG+'racing.png' },
+      { id:'independiente',  name:'Independiente',         crest: CDN_ARG+'independiente.png' },
+      { id:'sanlorenzo',     name:'San Lorenzo',           crest: CDN_ARG+'sanlorenzo.png' },
+      { id:'huracan',        name:'Huracán',               crest: CDN_ARG+'huracan.png' },
+      { id:'estudiantes',    name:'Estudiantes LP',        crest: CDN_ARG+'estudiantes.png' },
+      { id:'lanus',          name:'Lanús',                 crest: CDN_ARG+'lanus.png' },
+      { id:'banfield',       name:'Banfield',              crest: CDN_ARG+'banfield.png' },
+      { id:'gimnasia',       name:'Gimnasia LP',           crest: CDN_ARG+'gimnasia.png' },
+      { id:'newells',        name:"Newell's",              crest: CDN_ARG+'newells.png' },
+      { id:'rosariocentral', name:'Rosario Central',       crest: CDN_ARG+'rosariocentral.png' },
+      { id:'belgrano',       name:'Belgrano',              crest: CDN_ARG+'belgrano.png' },
+      { id:'talleres',       name:'Talleres',              crest: CDN_ARG+'talleres.png' },
+      { id:'defensa',        name:'Defensa y Justicia',    crest: CDN_ARG+'defensa.png' },
+      { id:'velez',          name:'Vélez Sársfield',       crest: CDN_ARG+'velez.png' },
+      { id:'platense',       name:'Platense',              crest: CDN_ARG+'platense.png' },
+      { id:'argentinos',     name:'Argentinos Juniors',    crest: CDN_ARG+'argentinos.png' },
+      { id:'godoycruz',      name:'Godoy Cruz',            crest: CDN_ARG+'godoycruz.png' },
+      { id:'tigre',          name:'Tigre',                 crest: CDN_ARG+'tigre.png' },
+      { id:'sarmiento',      name:'Sarmiento',             crest: CDN_ARG+'sarmiento.png' },
+      { id:'instituto',      name:'Instituto',             crest: CDN_ARG+'instituto.png' },
+      { id:'centralcordoba', name:'Central Córdoba',       crest: CDN_ARG+'centralcordoba.png' },
+      { id:'barracas',       name:'Barracas Central',      crest: CDN_ARG+'barracas.png' },
+      { id:'riestra',        name:'Deportivo Riestra',     crest: CDN_ARG+'riestra.png' },
+      { id:'aldosivi',       name:'Aldosivi',              crest: CDN_ARG+'aldosivi.png' },
+      { id:'atleticotucuman',name:'Atlético Tucumán',      crest: CDN_ARG+'atleticotucuman.png' },
+    ];
 
     // ── Grupos del Mundial 2026 ──
     const GROUPS = {
@@ -61,54 +92,55 @@
     };
 
     const TEAMS = {
-      'México':          { rank:16, flag:'🇲🇽', crest: CDN+'mexico.png' },
-      'Sudáfrica':       { rank:60, flag:'🇿🇦', crest: CDN+'sudafrica.png' },
-      'Corea del Sur':   { rank:24, flag:'🇰🇷', crest: CDN+'coreadelsur.png' },
-      'Rep. Checa':      { rank:37, flag:'🇨🇿', crest: CDN+'republicacheca.png' },
-      'Canadá':          { rank:47, flag:'🇨🇦', crest: CDN+'canada.png' },
-      'Bosnia y Herz.':  { rank:63, flag:'🇧🇦', crest: CDN+'bosnia.png' },
-      'Qatar':           { rank:70, flag:'🇶🇦', crest: CDN+'qatar.png' },
-      'Suiza':           { rank:19, flag:'🇨🇭', crest: CDN+'suiza.png' },
-      'Brasil':          { rank:5,  flag:'🇧🇷', crest: CDN+'brasil.png' },
-      'Marruecos':       { rank:14, flag:'🇲🇦', crest: CDN+'marruecos.png' },
-      'Haití':           { rank:83, flag:'🇭🇹', crest: CDN+'haiti.png' },
-      'Escocia':         { rank:38, flag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿', crest: CDN+'escocia.png' },
-      'Estados Unidos':  { rank:11, flag:'🇺🇸', crest: CDN+'usa.png' },
-      'Paraguay':        { rank:55, flag:'🇵🇾', crest: CDN+'paraguay.png' },
-      'Australia':       { rank:23, flag:'🇦🇺', crest: CDN+'australia.png' },
-      'Turquía':         { rank:29, flag:'🇹🇷', crest: CDN+'turquia.png' },
-      'Alemania':        { rank:12, flag:'🇩🇪', crest: CDN+'alemania.png' },
-      'Curazao':         { rank:85, flag:'🇨🇼', crest: CDN+'curazao.png' },
-      'Costa de Marfil': { rank:48, flag:'🇨🇮', crest: CDN+'costa_de_marfil.png' },
-      'Ecuador':         { rank:42, flag:'🇪🇨', crest: CDN+'ecuador.png' },
-      'Holanda':         { rank:7,  flag:'🇳🇱', crest: CDN+'paisesbajos.png' },
-      'Japón':           { rank:15, flag:'🇯🇵', crest: CDN+'japon.png' },
-      'Suecia':          { rank:26, flag:'🇸🇪', crest: CDN+'suecia.png' },
-      'Túnez':           { rank:34, flag:'🇹🇳', crest: CDN+'tunez.png' },
-      'Bélgica':         { rank:8,  flag:'🇧🇪', crest: CDN+'belgica.png' },
-      'Egipto':          { rank:32, flag:'🇪🇬', crest: CDN+'egipto.png' },
-      'Irán':            { rank:21, flag:'🇮🇷', crest: CDN+'iran.png' },
-      'Nueva Zelanda':   { rank:91, flag:'🇳🇿', crest: CDN+'nuevazelanda.png' },
+      // Ranking FIFA oficial — 1 abril 2026
+      'Francia':         { rank:1,  flag:'🇫🇷', crest: CDN+'francia.png' },
       'España':          { rank:2,  flag:'🇪🇸', crest: CDN+'espana.png' },
-      'Cabo Verde':      { rank:72, flag:'🇨🇻', crest: CDN+'cabo_verde.png' },
-      'Arabia Saudita':  { rank:58, flag:'🇸🇦', crest: CDN+'arabiasaudita.png' },
-      'Uruguay':         { rank:20, flag:'🇺🇾', crest: CDN+'uruguay.png' },
-      'Francia':         { rank:3,  flag:'🇫🇷', crest: CDN+'francia.png' },
-      'Senegal':         { rank:18, flag:'🇸🇳', crest: CDN+'senegal.png' },
-      'Irak':            { rank:57, flag:'🇮🇶', crest: CDN+'irak.png' },
-      'Noruega':         { rank:29, flag:'🇳🇴', crest: CDN+'noruega.png' },
-      'Argentina':       { rank:1,  flag:'🇦🇷', crest: CDN+'argentina.png' },
-      'Argelia':         { rank:41, flag:'🇩🇿', crest: CDN+'argelia.png' },
-      'Austria':         { rank:25, flag:'🇦🇹', crest: CDN+'austria.png' },
-      'Jordania':        { rank:65, flag:'🇯🇴', crest: CDN+'jordan.png' },
-      'Portugal':        { rank:6,  flag:'🇵🇹', crest: CDN+'portugal.png' },
-      'RD del Congo':    { rank:56, flag:'🇨🇩', crest: CDN+'congo.png' },
-      'Uzbekistán':      { rank:74, flag:'🇺🇿', crest: CDN+'uzbekistan.png' },
-      'Colombia':        { rank:17, flag:'🇨🇴', crest: CDN+'colombia.png' },
+      'Argentina':       { rank:3,  flag:'🇦🇷', crest: CDN+'argentina.png' },
       'Inglaterra':      { rank:4,  flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', crest: CDN+'inglaterra.png' },
-      'Croacia':         { rank:10, flag:'🇭🇷', crest: CDN+'croacia.png' },
-      'Ghana':           { rank:65, flag:'🇬🇭', crest: CDN+'ghana.png' },
-      'Panamá':          { rank:78, flag:'🇵🇦', crest: CDN+'panama.png' },
+      'Portugal':        { rank:5,  flag:'🇵🇹', crest: CDN+'portugal.png' },
+      'Brasil':          { rank:6,  flag:'🇧🇷', crest: CDN+'brasil.png' },
+      'Holanda':         { rank:7,  flag:'🇳🇱', crest: CDN+'paisesbajos.png' },
+      'Marruecos':       { rank:8,  flag:'🇲🇦', crest: CDN+'marruecos.png' },
+      'Bélgica':         { rank:9,  flag:'🇧🇪', crest: CDN+'belgica.png' },
+      'Alemania':        { rank:10, flag:'🇩🇪', crest: CDN+'alemania.png' },
+      'Croacia':         { rank:11, flag:'🇭🇷', crest: CDN+'croacia.png' },
+      'Colombia':        { rank:13, flag:'🇨🇴', crest: CDN+'colombia.png' },
+      'Senegal':         { rank:14, flag:'🇸🇳', crest: CDN+'senegal.png' },
+      'México':          { rank:15, flag:'🇲🇽', crest: CDN+'mexico.png' },
+      'Estados Unidos':  { rank:16, flag:'🇺🇸', crest: CDN+'usa.png' },
+      'Uruguay':         { rank:17, flag:'🇺🇾', crest: CDN+'uruguay.png' },
+      'Japón':           { rank:18, flag:'🇯🇵', crest: CDN+'japon.png' },
+      'Suiza':           { rank:19, flag:'🇨🇭', crest: CDN+'suiza.png' },
+      'Irán':            { rank:21, flag:'🇮🇷', crest: CDN+'iran.png' },
+      'Turquía':         { rank:22, flag:'🇹🇷', crest: CDN+'turquia.png' },
+      'Ecuador':         { rank:23, flag:'🇪🇨', crest: CDN+'ecuador.png' },
+      'Austria':         { rank:24, flag:'🇦🇹', crest: CDN+'austria.png' },
+      'Corea del Sur':   { rank:25, flag:'🇰🇷', crest: CDN+'coreadelsur.png' },
+      'Australia':       { rank:27, flag:'🇦🇺', crest: CDN+'australia.png' },
+      'Argelia':         { rank:28, flag:'🇩🇿', crest: CDN+'argelia.png' },
+      'Egipto':          { rank:29, flag:'🇪🇬', crest: CDN+'egipto.png' },
+      'Canadá':          { rank:30, flag:'🇨🇦', crest: CDN+'canada.png' },
+      'Noruega':         { rank:31, flag:'🇳🇴', crest: CDN+'noruega.png' },
+      'Panamá':          { rank:33, flag:'🇵🇦', crest: CDN+'panama.png' },
+      'Costa de Marfil': { rank:34, flag:'🇨🇮', crest: CDN+'costa_de_marfil.png' },
+      'Suecia':          { rank:38, flag:'🇸🇪', crest: CDN+'suecia.png' },
+      'Paraguay':        { rank:40, flag:'🇵🇾', crest: CDN+'paraguay.png' },
+      'Rep. Checa':      { rank:41, flag:'🇨🇿', crest: CDN+'republicacheca.png' },
+      'Escocia':         { rank:43, flag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿', crest: CDN+'escocia.png' },
+      'Túnez':           { rank:44, flag:'🇹🇳', crest: CDN+'tunez.png' },
+      'RD del Congo':    { rank:46, flag:'🇨🇩', crest: CDN+'congo.png' },
+      'Uzbekistán':      { rank:50, flag:'🇺🇿', crest: CDN+'uzbekistan.png' },
+      'Qatar':           { rank:55, flag:'🇶🇦', crest: CDN+'qatar.png' },
+      'Irak':            { rank:57, flag:'🇮🇶', crest: CDN+'irak.png' },
+      'Sudáfrica':       { rank:60, flag:'🇿🇦', crest: CDN+'sudafrica.png' },
+      'Arabia Saudita':  { rank:61, flag:'🇸🇦', crest: CDN+'arabiasaudita.png' },
+      'Jordania':        { rank:63, flag:'🇯🇴', crest: CDN+'jordan.png' },
+      'Bosnia y Herz.':  { rank:65, flag:'🇧🇦', crest: CDN+'bosnia.png' },
+      'Cabo Verde':      { rank:69, flag:'🇨🇻', crest: CDN+'cabo_verde.png' },
+      'Ghana':           { rank:74, flag:'🇬🇭', crest: CDN+'ghana.png' },
+      'Curazao':         { rank:82, flag:'🇨🇼', crest: CDN+'curazao.png' },
+      'Haití':           { rank:83, flag:'🇭🇹', crest: CDN+'haiti.png' },
+      'Nueva Zelanda':   { rank:85, flag:'🇳🇿', crest: CDN+'nuevazelanda.png' },
     };
 
     const MATCHES = [
@@ -191,6 +223,9 @@
     let adminFilter = 'pending', isRegister = false;
     let allUsers = {}, results = {}, groupStats = {};
     let unsubUsers = null, unsubRes = null;
+    let chatMessages = [], unsubChat = null;
+    window.__unreadChat = 0;
+    let lastSeenChat = 0;
 
     const isAdmin = () => Object.keys(PURE_ADMINS).includes(currentUser) || PLAYER_ADMINS.includes(currentUser);
 
@@ -209,12 +244,33 @@
     function formatDate(d, t) {
       return new Date(`${d}T${t}:00`).toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + t;
     }
+    function calcMatchPts(p, r) {
+      if(!r) return null;
+      let pts = 0;
+      // +1 acertar ganador o empate
+      const pw = p.home>p.away?1:p.home<p.away?-1:0;
+      const rw = r.home>r.away?1:r.home<r.away?-1:0;
+      if(pw===rw) pts += 1;
+      // +1 acertar goles de 1 equipo
+      const homeOk = p.home===r.home;
+      const awayOk = p.away===r.away;
+      if(homeOk || awayOk) pts += 1;
+      // +1 adicional por acertar goles de los 2 equipos
+      if(homeOk && awayOk) pts += 1;
+      return pts;
+    }
+
     function calcScore(u) {
       let pts=0, exact=0, winner=0;
       for (const [mid, p] of Object.entries(u.predictions||{})) {
         const r=results[mid]; if(!r) continue;
-        if(p.home===r.home&&p.away===r.away){pts+=3;exact++;}
-        else{const pw=p.home>p.away?1:p.home<p.away?-1:0,rw=r.home>r.away?1:r.home<r.away?-1:0;if(pw===rw){pts+=1;winner++;}}
+        const mp = calcMatchPts(p, r);
+        pts += mp;
+        if(p.home===r.home && p.away===r.away) exact++;
+        else {
+          const pw=p.home>p.away?1:p.home<p.away?-1:0,rw=r.home>r.away?1:r.home<r.away?-1:0;
+          if(pw===rw) winner++;
+        }
       }
       return {pts,exact,winner};
     }
@@ -241,6 +297,16 @@
         else { stats[g][h].pts+=1; stats[g][h].pe++; stats[g][a].pts+=1; stats[g][a].pe++; }
       });
       groupStats = stats;
+    }
+
+    function getClub(clubId) {
+      return CLUBS.find(c => c.id === clubId) || null;
+    }
+
+    function clubBadge(clubId, size=18) {
+      const c = getClub(clubId);
+      if(!c) return '';
+      return `<img src="${c.crest}" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0" onerror="this.style.display='none'" title="${c.name}">`;
     }
 
     function showToast(msg, type='ok') {
@@ -285,10 +351,10 @@
         </div>`;
         let cls='', pts='', ptsCls='pts-pending';
         if (res) {
-          if(pred.home===res.home&&pred.away===res.away){cls='correct-exact';pts='+3 ★';ptsCls='pts-3';}
-          else{const pw=pred.home>pred.away?1:pred.home<pred.away?-1:0,rw=res.home>res.away?1:res.home<res.away?-1:0;
-            if(pw===rw){cls='correct-winner';pts='+1 ✓';ptsCls='pts-1';}
-            else{cls='wrong';pts='0';ptsCls='pts-0';}}
+          const mp = calcMatchPts(pred, res);
+          pts = mp > 0 ? '+'+mp+(mp===3?' ★':'') : '0';
+          ptsCls = mp===3?'pts-3':mp>0?'pts-1':'pts-0';
+          cls = mp===3?'correct-exact':mp>0?'correct-winner':'wrong';
         } else { pts='🔒'; }
         return `<div class="pred-row ${cls}">
           <span class="pred-player">${u.name}</span>
@@ -305,11 +371,32 @@
     function startListening() {
       if (unsubUsers) unsubUsers();
       if (unsubRes) unsubRes();
+      if (unsubChat) unsubChat();
+
       unsubUsers = onSnapshot(collection(db,'users'), snap => {
         allUsers={}; snap.forEach(d=>{allUsers[d.id]=d.data();}); calcGroupStandings(); render();
       });
       unsubRes = onSnapshot(doc(db,'config','results'), snap => {
         results=snap.exists()?snap.data():{}; calcGroupStandings(); render();
+      });
+
+      const chatQ = query(collection(db,'chat'), orderBy('ts','asc'), limit(100));
+      unsubChat = onSnapshot(chatQ, snap => {
+        chatMessages = [];
+        snap.forEach(d => chatMessages.push({id:d.id,...d.data()}));
+        // Count unread
+        const newUnread = chatMessages.filter(m=>m.ts&&m.ts.toMillis&&m.ts.toMillis()>lastSeenChat&&m.user!==currentUser).length;
+        window.__unreadChat = newUnread;
+        // Re-render nav badge without full re-render if in chat
+        if(currentView==='chat'){
+          lastSeenChat = Date.now();
+          window.__unreadChat = 0;
+          renderChatMessages();
+        } else {
+          // Just update the badge
+          const badge = document.querySelector('.chat-badge');
+          if(badge) badge.textContent = newUnread>0?newUnread:'';
+        }
       });
     }
 
@@ -327,7 +414,10 @@
           <div class="user-info">
             ${isAdmin()?'<span class="admin-badge">⚙️ ADMIN</span>':''}
             <div class="avatar">${name.substring(0,2).toUpperCase()}</div>
-            <span class="user-name">${name}</span>
+            <span class="user-name" style="display:flex;align-items:center;gap:5px">
+              ${allUsers[currentUser]?.club ? clubBadge(allUsers[currentUser].club, 18) : ''}
+              ${name}
+            </span>
             <button class="btn-logout" onclick="window.__logout()">Salir</button>
           </div>
         </div>
@@ -336,6 +426,11 @@
           <button class="nav-btn ${currentView==='groups'?'active':''}" onclick="window.__setView('groups')">📊 Grupos</button>
           <button class="nav-btn ${currentView==='leaderboard'?'active':''}" onclick="window.__setView('leaderboard')">🏅 Tabla</button>
           <button class="nav-btn ${currentView==='mypreds'?'active':''}" onclick="window.__setView('mypreds')">📋 Mis pronósticos</button>
+          <button class="nav-btn ${currentView==='profile'?'active':''}" onclick="window.__setView('profile')">👤 Mi perfil</button>
+          <button class="nav-btn ${currentView==='chat'?'active':''}" onclick="window.__setView('chat')" style="position:relative">
+            💬 Chat
+            ${(()=>{const u=window.__unreadChat||0;return u>0?`<span style="position:absolute;top:6px;right:4px;background:#da3633;color:#fff;font-size:9px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1">${u}</span>`:'';})()}
+          </button>
           ${isAdmin()?`<button class="nav-btn admin-nav ${currentView==='admin'?'active':''}" onclick="window.__setView('admin')" style="position:relative">
             ⚙️ Admin
             ${(()=>{const pendingResults=MATCHES.filter(m=>{const now=new Date();const dt=new Date(m.date+'T'+m.time+':00');return (now-dt)/60000>110&&!results[m.id];}).length;const pendingUsers=Object.values(allUsers).filter(u=>u.status==='pending'||!u.status).length;const p=pendingResults+pendingUsers;return p>0?`<span style="position:absolute;top:6px;right:4px;background:#da3633;color:#fff;font-size:9px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1">${p}</span>`:'';})()}
@@ -349,6 +444,8 @@
       if (currentView==='groups')      return renderGroups();
       if (currentView==='leaderboard') return renderLeaderboard();
       if (currentView==='mypreds')     return renderMyPreds();
+      if (currentView==='chat')       return renderChat();
+      if (currentView==='profile')    return renderProfile();
       if (currentView==='admin'&&isAdmin()) return renderAdmin();
       return '';
     }
@@ -460,10 +557,14 @@
       return `<div class="section-title">Tabla de Posiciones</div>
         <div class="live-badge">🟢 En tiempo real</div>
         <div class="points-info">
-          <h3>Puntos</h3>
-          <div class="points-row"><span>Resultado exacto</span><span class="score-badge">3 pts</span></div>
-          <div class="points-row"><span>Ganador correcto</span><span class="score-badge">1 pt</span></div>
-          <div class="points-row"><span>Incorrecto</span><span class="score-badge">0 pts</span></div>
+          <h3>Sistema de puntos <span style="font-size:11px;color:var(--muted);font-family:'Barlow',sans-serif;font-weight:400">(máx. 3 por partido)</span></h3>
+          <div class="points-row"><span>✓ Acertás el ganador o empate</span><span class="score-badge">+1</span></div>
+          <div class="points-row"><span>✓ Acertás los goles de 1 equipo</span><span class="score-badge">+1</span></div>
+          <div class="points-row"><span>✓ Acertás los goles de los 2 equipos</span><span class="score-badge">+1</span></div>
+          <div class="points-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
+            <span style="color:var(--muted);font-size:11px">Ejemplo: pronosticás 2-1, sale 2-1 → ganador ✓ + goles local ✓ + goles visitante ✓</span>
+            <span class="score-badge">3 pts</span>
+          </div>
         </div>
         <table class="leaderboard-table">
           <thead><tr><th>#</th><th>Jugador</th><th>Pron.</th><th>Exactos</th><th>Ganador</th><th>Pts</th></tr></thead>
@@ -482,10 +583,12 @@
         const res=results[mid],ht=TEAMS[match.home]||{},at=TEAMS[match.away]||{};
         let tag='<span class="pred-result res-pending">Pendiente</span>';
         if(res){
-          if(pred.home===res.home&&pred.away===res.away){tag='<span class="pred-result res-exact">+3 pts ★</span>';totalPts+=3;}
-          else{const pw=pred.home>pred.away?1:pred.home<pred.away?-1:0,rw=res.home>res.away?1:res.home<res.away?-1:0;
-            if(pw===rw){tag='<span class="pred-result res-winner">+1 pt ✓</span>';totalPts+=1;}
-            else tag='<span class="pred-result res-wrong">0 pts ✗</span>';}
+          const mp = calcMatchPts(pred, res);
+          totalPts += mp;
+          if(mp===3) tag='<span class="pred-result res-exact">+3 pts ★</span>';
+          else if(mp===2) tag='<span class="pred-result res-winner">+2 pts ✓</span>';
+          else if(mp===1) tag='<span class="pred-result res-winner">+1 pt ✓</span>';
+          else tag='<span class="pred-result res-wrong">0 pts ✗</span>';
         }
         return `<div class="pred-item">
           <div class="pred-match">
@@ -502,6 +605,106 @@
       return `<div class="section-title">Mis Pronósticos</div>
         <div class="my-score-banner"><span>Total acumulado</span><span class="pts">${totalPts} <span class="pts-label">pts</span></span></div>
         ${items}`;
+    }
+
+
+    // ── CHAT ──
+    function renderChat() {
+      lastSeenChat = Date.now();
+      window.__unreadChat = 0;
+      return `
+        <div class="section-title">💬 Chat del Prode</div>
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            ${renderChatMessagesHTML()}
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" type="text" placeholder="Escribí algo..."
+            maxlength="300" autocomplete="off"
+            onkeydown="if(event.key==='Enter')window.__sendChat()">
+          <button class="chat-send-btn" onclick="window.__sendChat()">➤</button>
+        </div>`;
+    }
+
+    function renderChatMessagesHTML() {
+      if(!chatMessages.length) return '<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:14px">Nadie habló todavía.<br>¡Sé el primero! 👋</div>';
+      let html = "";
+      let lastDate = "";
+      chatMessages.forEach(m => {
+        const isMine = m.user === currentUser;
+        const userName = allUsers[m.user]?.name || m.user;
+        const ts = m.ts?.toDate ? m.ts.toDate() : new Date();
+        const dateStr = ts.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
+        const timeStr = ts.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+        if(dateStr !== lastDate) {
+          html += "<div class=\"chat-date-sep\">"+dateStr+"</div>";
+          lastDate = dateStr;
+        }
+        const initials = userName.substring(0,2).toUpperCase();
+        html += "<div class=\"chat-msg-row "+(isMine?"mine":"")+"\">"+
+          (!isMine?"<div class=\"chat-avatar\">"+initials+"</div>":"")+
+          "<div class=\"chat-bubble "+(isMine?"mine":"")+"\">"+
+          (!isMine?"<div class=\"chat-username\" style=\"display:flex;align-items:center;gap:4px\">"+(allUsers[m.user]?.club?'<img src="'+getClub(allUsers[m.user].club)?.crest+'" style="width:14px;height:14px;object-fit:contain" onerror="this.style.display='none'">':'')+userName+"</div>":"")+
+          "<div class=\"chat-text\">"+escapeHtml(m.text)+"</div>"+
+          "<div class=\"chat-time\">"+timeStr+"</div>"+
+          "</div>"+
+          (isMine?"<div class=\"chat-avatar mine\">"+initials+"</div>":"")+
+          "</div>";
+      });
+      return html;
+    }
+
+    function renderChatMessages() {
+      const el = document.getElementById("chat-messages");
+      if(!el) return;
+      el.innerHTML = renderChatMessagesHTML();
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+
+    // ── PERFIL ──
+    function renderProfile() {
+      const u = allUsers[currentUser] || {};
+      const currentClub = u.club || null;
+      const clubOptions = CLUBS.map(c => {
+        const sel = c.id === currentClub ? 'selected' : '';
+        return `<option value="${c.id}" ${sel}>${c.name}</option>`;
+      }).join('');
+
+      return `
+        <div class="section-title">👤 Mi Perfil</div>
+        <div class="profile-card">
+          <div class="profile-avatar">${u.name?.substring(0,2).toUpperCase()||'??'}</div>
+          <div class="profile-info">
+            <div class="profile-name">${u.name||currentUser}</div>
+            <div class="profile-user">@${currentUser}</div>
+          </div>
+        </div>
+
+        <div class="profile-section-title">🏟️ ¿De qué equipo sos?</div>
+        <div class="club-grid" id="club-grid">
+          ${CLUBS.map(c => `
+            <div class="club-option ${c.id===currentClub?'selected':''}" onclick="window.__selectClub('${c.id}')">
+              <img src="${c.crest}" class="club-option-img" alt="${c.name}"
+                onload="this.style.opacity='1';this.nextElementSibling.style.display='none'"
+                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                style="opacity:0;transition:opacity 0.2s">
+              <div class="club-option-fallback" style="display:flex">⚽</div>
+              <span class="club-option-name">${c.name}</span>
+              ${c.id===currentClub?'<div class="club-check">✓</div>':''}
+            </div>`).join('')}
+        </div>
+        ${currentClub ? `
+          <div class="profile-current-club">
+            ${clubBadge(currentClub, 28)}
+            <span>Hincha de <strong>${getClub(currentClub)?.name}</strong></span>
+          </div>` : '<div style="font-size:13px;color:var(--muted);margin-top:12px;text-align:center">Seleccioná tu equipo arriba</div>'}
+      `;
     }
 
     // ── ADMIN ──
@@ -598,7 +801,7 @@
               <div class="admin-player-row">
                 <div class="avatar" style="width:34px;height:34px;font-size:12px">${u.name.substring(0,2).toUpperCase()}</div>
                 <div style="flex:1;min-width:0">
-                  <div style="font-weight:600;font-size:13px">${u.name}</div>
+                  <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px">${u.club?clubBadge(u.club,16):''}${u.name}</div>
                   <div style="font-size:11px;color:var(--muted)">@${key} · ${Object.keys(u.predictions||{}).length} pronósticos</div>
                 </div>
                 <div style="text-align:right;flex-shrink:0"><div class="pts" style="font-size:18px">${s.pts}</div><div class="pts-label">pts</div></div>
@@ -753,6 +956,36 @@
       catch(e){showToast('❌ Error al borrar','err');}
     };
 
+
+    window.__sendChat = async () => {
+      const input = document.getElementById('chat-input');
+      if(!input) return;
+      const text = input.value.trim();
+      if(!text) return;
+      input.value = '';
+      const userName = allUsers[currentUser]?.name || currentUser;
+      try {
+        await addDoc(collection(db,'chat'), {
+          user: currentUser,
+          name: userName,
+          text,
+          ts: serverTimestamp()
+        });
+      } catch(e) {
+        showToast('❌ Error al enviar','err');
+      }
+    };
+
+    window.__selectClub = async (clubId) => {
+      try {
+        await setDoc(doc(db,'users',currentUser),{club: clubId},{merge:true});
+        showToast('✅ Equipo guardado: ' + getClub(clubId)?.name);
+        // Re-render profile to show selection
+        render();
+      } catch(e) {
+        showToast('❌ Error al guardar','err');
+      }
+    };
 
     window.__approveUser = async (uname) => {
       try {
