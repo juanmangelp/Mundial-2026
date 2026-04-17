@@ -645,7 +645,7 @@
         html += "<div class=\"chat-msg-row "+(isMine?"mine":"")+"\">"+
           (!isMine?"<div class=\"chat-avatar\">"+initials+"</div>":"")+
           "<div class=\"chat-bubble "+(isMine?"mine":"")+"\">"+
-          (!isMine?"<div class=\"chat-username\" style=\"display:flex;align-items:center;gap:4px\">"+(allUsers[m.user]?.club?'<img src="'+getClub(allUsers[m.user].club)?.crest+'" style="width:14px;height:14px;object-fit:contain" onerror="this.style.display='none'">':'')+userName+"</div>":"")+
+          (!isMine?"<div class=\"chat-username\" style=\"display:flex;align-items:center;gap:4px\">"+(allUsers[m.user]?.club?'<img src="'+getClub(allUsers[m.user].club)?.crest+'" style="object-fit:contain">>':'')+userName+"</div>":"")+
           "<div class=\"chat-text\">"+escapeHtml(m.text)+"</div>"+
           "<div class=\"chat-time\">"+timeStr+"</div>"+
           "</div>"+
@@ -855,20 +855,23 @@
 
     function renderRegClubPicker() {
       let html = '<div class="input-group">';
-      html += '<label>\u00bfDe qu\u00e9 equipo sos? <span style="color:var(--muted);font-weight:400">(opcional)</span></label>';
+      html += '<label>\u00bfDe qu\u00e9 equipo sos? ';
+      html += '<span style="color:#8b949e;font-weight:400">(opcional)</span></label>';
       html += '<div class="reg-club-grid" id="reg-club-grid">';
       CLUBS.forEach(function(c) {
-        html += '<div class="reg-club-option" id="rco-' + c.id + '" onclick="window.__selectRegClub('' + c.id + '')">';
-        html += '<img src="' + c.crest + '" style="width:36px;height:36px;object-fit:contain" ';
-        html += 'onload="this.style.opacity='1';this.nextElementSibling.style.display='none'" ';
-        html += 'onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" ';
-        html += 'style="opacity:0;transition:opacity 0.2s">';
-        html += '<div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;font-size:22px">\u26bd</div>';
-        html += '<span style="font-size:8px;color:var(--muted);text-align:center;line-height:1.2;margin-top:2px">' + c.name + '</span>';
+        html += '<div class="reg-club-option" id="rco-' + c.id + '" ';
+        html += 'onclick="window.__selectRegClub(this, \'' + c.id + '\')">';
+        html += '<img src="' + c.crest + '" ';
+        html += 'style="width:36px;height:36px;object-fit:contain;display:block" ';
+        html += 'onerror="this.style.display=\'none\'">';
+        html += '<span style="font-size:8px;color:#8b949e;text-align:center;';
+        html += 'line-height:1.2;margin-top:2px;display:block">' + c.name + '</span>';
         html += '</div>';
       });
       html += '</div>';
-      html += '<div id="reg-club-selected" style="display:none;margin-top:8px;font-size:12px;color:var(--green-light);text-align:center"></div>';
+      html += '<div id="reg-club-selected" ';
+      html += 'style="display:none;margin-top:8px;font-size:12px;';
+      html += 'color:#4ac261;text-align:center"></div>';
       html += '</div>';
       return html;
     }
@@ -901,18 +904,16 @@
     // ── ACCIONES ──
     window.__toggleMode = ()=>{ isRegister=!isRegister; render(); };
 
-    window.__selectRegClub = (clubId) => {
-      // Deselect all
+    window.__selectRegClub = (elOrId, clubId) => {
+      // Handle both (element, id) and (id) call signatures
+      const id = clubId || elOrId;
       document.querySelectorAll('.reg-club-option').forEach(el => el.classList.remove('selected'));
-      // Select clicked
-      const el = document.getElementById('rco-'+clubId);
+      const el = document.getElementById('rco-'+id);
       if(el) el.classList.add('selected');
-      // Store selection
-      window.__regClub = clubId;
-      // Show label
-      const club = CLUBS.find(c=>c.id===clubId);
+      window.__regClub = id;
+      const club = CLUBS.find(c=>c.id===id);
       const sel = document.getElementById('reg-club-selected');
-      if(sel && club) { sel.style.display='block'; sel.innerHTML='✓ '+club.name; }
+      if(sel && club) { sel.style.display='block'; sel.textContent='✓ '+club.name; }
     };
     window.__setView        = v =>{ currentView=v; render(); };
     window.__setFilter      = f =>{ matchFilter=f; render(); };
