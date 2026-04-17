@@ -548,7 +548,15 @@
         .sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
       const rows=ranking.map((u,i)=>`<tr class="${u.key===currentUser?'highlight-row':''}">
         <td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="rank-n">${i+1}</span>`}</td>
-        <td><span class="player-name">${u.name}${u.key===currentUser?' (vos)':''}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:7px">
+            ${allUsers[u.key]?.club ? clubBadge(allUsers[u.key].club, 22) : ''}
+            <div>
+              <div class="player-name">${u.name}${u.key===currentUser?' (vos)':''}</div>
+              ${allUsers[u.key]?.club ? `<div style="font-size:10px;color:var(--muted)">${getClub(allUsers[u.key].club)?.name||''}</div>` : ''}
+            </div>
+          </div>
+        </td>
         <td style="color:var(--muted)">${u.predCount}</td>
         <td style="color:var(--gold)">${u.exact}</td>
         <td style="color:var(--green-light)">${u.winner}</td>
