@@ -853,6 +853,26 @@
       </div></div>`;
     }
 
+    function renderRegClubPicker() {
+      let html = '<div class="input-group">';
+      html += '<label>\u00bfDe qu\u00e9 equipo sos? <span style="color:var(--muted);font-weight:400">(opcional)</span></label>';
+      html += '<div class="reg-club-grid" id="reg-club-grid">';
+      CLUBS.forEach(function(c) {
+        html += '<div class="reg-club-option" id="rco-' + c.id + '" onclick="window.__selectRegClub('' + c.id + '')">';
+        html += '<img src="' + c.crest + '" style="width:36px;height:36px;object-fit:contain" ';
+        html += 'onload="this.style.opacity='1';this.nextElementSibling.style.display='none'" ';
+        html += 'onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" ';
+        html += 'style="opacity:0;transition:opacity 0.2s">';
+        html += '<div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;font-size:22px">\u26bd</div>';
+        html += '<span style="font-size:8px;color:var(--muted);text-align:center;line-height:1.2;margin-top:2px">' + c.name + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<div id="reg-club-selected" style="display:none;margin-top:8px;font-size:12px;color:var(--green-light);text-align:center"></div>';
+      html += '</div>';
+      return html;
+    }
+
     function renderLogin() {
       return `<div class="login-page"><div class="login-box">
         <img src="gindangas.png" alt="Gindangas" class="login-logo">
@@ -867,22 +887,7 @@
             autocomplete="${isRegister?'new-password':'current-password'}"
             onkeydown="if(event.key==='Enter'&&!${isRegister})window.__doLogin()">
         </div>
-        ${isRegister?`
-        <div class="input-group">
-          <label>¿De qué equipo sos? <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
-          <div class="reg-club-grid" id="reg-club-grid">
-            ${CLUBS.map(c=>`
-              <div class="reg-club-option" id="rco-${c.id}" onclick="window.__selectRegClub('${c.id}')">
-                <img src="${c.crest}" style="width:36px;height:36px;object-fit:contain"
-                  onload="this.style.opacity='1';this.nextElementSibling.style.display='none'"
-                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-                  style="opacity:0;transition:opacity 0.2s">
-                <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;font-size:22px">⚽</div>
-                <span style="font-size:8px;color:var(--muted);text-align:center;line-height:1.2;margin-top:2px">${c.name}</span>
-              </div>`).join('')}
-          </div>
-          <div id="reg-club-selected" style="display:none;margin-top:8px;font-size:12px;color:var(--green-light);text-align:center"></div>
-        </div>`:''}
+        ${isRegister ? renderRegClubPicker() : ""}
         <button class="btn-primary" id="btn-submit" onclick="${isRegister?'window.__doRegister()':'window.__doLogin()'}">
           ${isRegister?'Crear cuenta':'Entrar al prode'}
         </button>
