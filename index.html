@@ -275,6 +275,39 @@
       return {pts,exact,winner};
     }
 
+    // Calcula racha actual de aciertos consecutivos (partidos jugados en orden cronológico)
+    function calcStreak(u) {
+      const preds = u.predictions || {};
+      // Ordenar partidos jugados por fecha
+      const playedMatches = MATCHES
+        .filter(m => results[m.id] && preds[m.id])
+        .sort((a,b) => new Date(b.date+'T'+b.time+':00') - new Date(a.date+'T'+a.time+':00'));
+      let streak = 0;
+      for (const m of playedMatches) {
+        const mp = calcMatchPts(preds[m.id], results[m.id]);
+        if(mp > 0) streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    // Encuentra el próximo partido (el más cercano en el futuro)
+    function getNextMatch() {
+      const now = new Date();
+      return MATCHES.find(m => new Date(m.date+'T'+m.time+':00') > now);
+    }
+
+    function formatCountdown(ms) {
+      if(ms <= 0) return '¡YA EMPEZÓ!';
+      const d = Math.floor(ms/86400000);
+      const h = Math.floor((ms%86400000)/3600000);
+      const mn = Math.floor((ms%3600000)/60000);
+      const s = Math.floor((ms%60000)/1000);
+      if(d > 0) return d+'d '+h+'h '+mn+'m';
+      if(h > 0) return h+'h '+mn+'m '+s+'s';
+      return mn+'m '+s+'s';
+    }
+
     // ── Calcula tabla de posiciones por grupo ──
     function calcGroupStandings() {
       const stats = {};
@@ -450,6 +483,51 @@
       return '';
     }
 
+
+    // ── BANNER PRÓXIMO PARTIDO ──
+    function renderNextMatchBanner() {
+      const nextM = getNextMatch();
+      if(!nextM) return '';
+      const ht = TEAMS[nextM.home]||{};
+      const at = TEAMS[nextM.away]||{};
+      const diff = new Date(nextM.date+'T'+nextM.time+':00') - new Date();
+      const isLive = diff < 0 && diff > -110*60000;
+
+      return `<div class="next-match-banner ${isLive?'live':''}">
+        <div class="next-match-label">${isLive?'🔴 EN VIVO AHORA':'⏱ PRÓXIMO PARTIDO'}</div>
+        <div class="next-match-teams">
+          <div class="next-match-team">
+            ${ht.crest?'<img src="'+ht.crest+'" class="next-match-crest" onerror="this.style.display=\'none\'">':'<div class="next-match-crest" style="font-size:32px">'+(ht.flag||'⚽')+'</div>'}
+            <div class="next-match-team-name">${nextM.home}</div>
+          </div>
+          <div class="next-match-center">
+            <div class="next-match-vs">VS</div>
+            <div class="next-match-countdown" id="next-match-countdown" data-ts="${new Date(nextM.date+'T'+nextM.time+':00').getTime()}">
+              ${isLive?'⚽ Jugando':formatCountdown(diff)}
+            </div>
+            <div class="next-match-meta">Grupo ${nextM.group} · ${nextM.venue}</div>
+          </div>
+          <div class="next-match-team">
+            ${at.crest?'<img src="'+at.crest+'" class="next-match-crest" onerror="this.style.display=\'none\'">':'<div class="next-match-crest" style="font-size:32px">'+(at.flag||'⚽')+'</div>'}
+            <div class="next-match-team-name">${nextM.away}</div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // Actualiza el countdown cada segundo
+    setInterval(() => {
+      const el = document.getElementById('next-match-countdown');
+      if(!el) return;
+      const ts = parseInt(el.getAttribute('data-ts'));
+      const diff = ts - Date.now();
+      if(diff > -110*60000 && diff < 0) {
+        el.textContent = '⚽ Jugando';
+      } else if(diff > 0) {
+        el.textContent = formatCountdown(diff);
+      }
+    }, 1000);
+
     // ── PARTIDOS ──
     function renderMatches() {
       const labels={all:'Todos',open:'Abiertos',closed:'Cerrados'};
@@ -486,7 +564,8 @@
           ${revealed?renderRevealedPreds(m.id, res):''}
         </div>`;
       }).join('');
-      return `<div class="section-title">Partidos</div>
+      return `${renderNextMatchBanner()}
+        <div class="section-title">Partidos</div>
         <div class="filter-bar">
           ${Object.entries(labels).map(([k,v])=>`<button class="filter-btn ${matchFilter===k?'active':''}" onclick="window.__setFilter('${k}')">${v}</button>`).join('')}
         </div>
@@ -544,16 +623,45 @@
     // ── TABLA ──
     function renderLeaderboard() {
       const ranking=Object.entries(allUsers).filter(([k,u])=>!Object.keys(PURE_ADMINS).includes(k)&&u.status==='approved')
-        .map(([key,u])=>({key,name:u.name,...calcScore(u),predCount:Object.keys(u.predictions||{}).length}))
+        .map(([key,u])=>({key,name:u.name,club:u.club,streak:calcStreak(u),...calcScore(u),predCount:Object.keys(u.predictions||{}).length}))
         .sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
+
+      // ── PODIO TOP 3 ──
+      const top3 = ranking.slice(0,3);
+      let podiumHTML = '';
+      if(top3.length >= 1) {
+        const medals = ['🥇','🥈','🥉'];
+        const colors = ['#f5c842','#c0c0c0','#cd7f32'];
+        const sizes = [1, 0.88, 0.82];
+        // Orden visual: 2º, 1º, 3º (estilo podio real)
+        const order = top3.length===3 ? [1,0,2] : top3.length===2 ? [1,0] : [0];
+        const podiumCards = order.map(idx => {
+          const u = top3[idx];
+          const isMe = u.key === currentUser;
+          return `<div class="podium-card ${isMe?'me':''}" style="transform:scale(${sizes[idx]})">
+            <div class="podium-medal" style="color:${colors[idx]}">${medals[idx]}</div>
+            <div class="podium-avatar" style="${idx===0?'border-color:'+colors[idx]:''}">
+              ${u.club ? '<img src="'+getClub(u.club)?.crest+'" style="width:100%;height:100%;object-fit:contain;padding:6px" onerror="this.style.display=\'none\';this.parentElement.textContent=\''+u.name.substring(0,2).toUpperCase()+'\'">' : u.name.substring(0,2).toUpperCase()}
+            </div>
+            <div class="podium-name">${u.name}${isMe?' 👤':''}</div>
+            <div class="podium-pts" style="color:${colors[idx]}">${u.pts} <span style="font-size:10px;opacity:0.7">pts</span></div>
+            ${u.streak>=2?'<div class="podium-streak">🔥 '+u.streak+'</div>':''}
+          </div>`;
+        }).join('');
+        podiumHTML = `<div class="podium-wrap"><div class="podium">${podiumCards}</div></div>`;
+      }
+
       const rows=ranking.map((u,i)=>`<tr class="${u.key===currentUser?'highlight-row':''}">
         <td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="rank-n">${i+1}</span>`}</td>
         <td>
           <div style="display:flex;align-items:center;gap:7px">
-            ${allUsers[u.key]?.club ? clubBadge(allUsers[u.key].club, 22) : ''}
+            ${u.club ? clubBadge(u.club, 22) : ''}
             <div>
-              <div class="player-name">${u.name}${u.key===currentUser?' (vos)':''}</div>
-              ${allUsers[u.key]?.club ? `<div style="font-size:10px;color:var(--muted)">${getClub(allUsers[u.key].club)?.name||''}</div>` : ''}
+              <div class="player-name">
+                ${u.name}${u.key===currentUser?' (vos)':''}
+                ${u.streak>=3?`<span class="streak-badge" title="${u.streak} aciertos seguidos">🔥 ${u.streak}</span>`:''}
+              </div>
+              ${u.club ? `<div style="font-size:10px;color:var(--muted)">${getClub(u.club)?.name||''}</div>` : ''}
             </div>
           </div>
         </td>
@@ -562,22 +670,20 @@
         <td style="color:var(--green-light)">${u.winner}</td>
         <td><span class="pts">${u.pts}</span> <span class="pts-label">pts</span></td>
       </tr>`).join('');
+
       return `<div class="section-title">Tabla de Posiciones</div>
         <div class="live-badge">🟢 En tiempo real</div>
-        <div class="points-info">
+        ${podiumHTML}
+        <table class="leaderboard-table">
+          <thead><tr><th>#</th><th>Jugador</th><th>Pron.</th><th>Exactos</th><th>Ganador</th><th>Pts</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Sin jugadores aún</td></tr>'}</tbody>
+        </table>
+        <div class="points-info" style="margin-top:16px">
           <h3>Sistema de puntos <span style="font-size:11px;color:var(--muted);font-family:'Barlow',sans-serif;font-weight:400">(máx. 3 por partido)</span></h3>
           <div class="points-row"><span>✓ Acertás el ganador o empate</span><span class="score-badge">+1</span></div>
           <div class="points-row"><span>✓ Acertás los goles de 1 equipo</span><span class="score-badge">+1</span></div>
           <div class="points-row"><span>✓ Acertás los goles de los 2 equipos</span><span class="score-badge">+1</span></div>
-          <div class="points-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
-            <span style="color:var(--muted);font-size:11px">Ejemplo: pronosticás 2-1, sale 2-1 → ganador ✓ + goles local ✓ + goles visitante ✓</span>
-            <span class="score-badge">3 pts</span>
-          </div>
-        </div>
-        <table class="leaderboard-table">
-          <thead><tr><th>#</th><th>Jugador</th><th>Pron.</th><th>Exactos</th><th>Ganador</th><th>Pts</th></tr></thead>
-          <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Sin jugadores aún</td></tr>'}</tbody>
-        </table>`;
+        </div>`;
     }
 
     // ── MIS PRONÓSTICOS ──

@@ -763,3 +763,186 @@ input[type=number] { -moz-appearance: textfield; }
   border-color: var(--gold);
   background: rgba(245,200,66,0.1);
 }
+
+/* ── PODIO TOP 3 ── */
+.podium-wrap {
+  margin-bottom: 20px;
+  padding: 14px 8px 10px;
+  background: linear-gradient(180deg, rgba(245,200,66,0.08) 0%, transparent 100%);
+  border-radius: var(--radius);
+  border: 1px solid rgba(245,200,66,0.15);
+}
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+}
+.podium-card {
+  background: var(--dark2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 8px;
+  text-align: center;
+  width: 95px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: transform 0.25s;
+  position: relative;
+}
+.podium-card.me {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px rgba(245,200,66,0.3);
+}
+.podium-medal {
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.podium-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--dark3);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--text);
+  overflow: hidden;
+}
+.podium-name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.podium-pts {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  line-height: 1;
+}
+.podium-streak {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+  background: rgba(255,87,34,0.2);
+  color: #ff7f50;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,127,80,0.35);
+  font-weight: 700;
+}
+
+/* ── BADGE RACHA en tabla ── */
+.streak-badge {
+  display: inline-block;
+  font-size: 10px;
+  background: rgba(255,87,34,0.18);
+  color: #ff7f50;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,127,80,0.3);
+  margin-left: 6px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* ── BANNER PRÓXIMO PARTIDO ── */
+.next-match-banner {
+  background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%);
+  border: 1px solid rgba(245,200,66,0.25);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.next-match-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.next-match-banner.live {
+  border-color: rgba(218,54,51,0.4);
+  animation: livePulse 2s ease-in-out infinite;
+}
+.next-match-banner.live::before {
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+}
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(218,54,51,0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(218,54,51,0); }
+}
+.next-match-label {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.next-match-banner.live .next-match-label { color: #f97070; }
+.next-match-teams {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.next-match-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.next-match-crest {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+@media (min-width: 480px) { .next-match-crest { width: 52px; height: 52px; } }
+.next-match-team-name {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+@media (min-width: 480px) { .next-match-team-name { font-size: 13px; } }
+.next-match-center { text-align: center; }
+.next-match-vs {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+.next-match-countdown {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--gold);
+  letter-spacing: 1px;
+  line-height: 1.1;
+  margin: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 480px) { .next-match-countdown { font-size: 28px; } }
+.next-match-banner.live .next-match-countdown { color: #f97070; }
+.next-match-meta {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
