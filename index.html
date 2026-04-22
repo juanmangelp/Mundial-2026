@@ -291,6 +291,26 @@
       return streak;
     }
 
+    // Calcula puntos de un usuario en un rango de partidos (por fecha)
+    function calcDayScore(u, matchIds) {
+      let pts = 0;
+      for (const mid of matchIds) {
+        const p = u.predictions?.[mid], r = results[mid];
+        if(p && r) pts += calcMatchPts(p, r);
+      }
+      return pts;
+    }
+
+    // Agrupa partidos por fecha (día calendario)
+    function getMatchdays() {
+      const days = {};
+      MATCHES.forEach(m => {
+        if(!days[m.date]) days[m.date] = [];
+        days[m.date].push(m.id);
+      });
+      return days;
+    }
+
     // Encuentra el próximo partido (el más cercano en el futuro)
     function getNextMatch() {
       const now = new Date();
@@ -484,6 +504,56 @@
     }
 
 
+
+    // ── MINI-RANKING POR FECHA ──
+    function renderMatchdayRanking() {
+      const days = getMatchdays();
+      // Encontrar el último día con resultados cargados
+      const sortedDays = Object.keys(days).sort().reverse();
+      let lastDayWithResults = null;
+      for (const d of sortedDays) {
+        if(days[d].some(mid => results[mid])) {
+          lastDayWithResults = d;
+          break;
+        }
+      }
+      if(!lastDayWithResults) return '';
+
+      const matchIds = days[lastDayWithResults];
+      const playedCount = matchIds.filter(mid => results[mid]).length;
+      const totalCount = matchIds.length;
+
+      // Ranking de aprobados del día
+      const approved = Object.entries(allUsers).filter(([k,u]) => !Object.keys(PURE_ADMINS).includes(k) && u.status === 'approved');
+      const dayRanking = approved
+        .map(([key, u]) => ({ key, name: u.name, club: u.club, pts: calcDayScore(u, matchIds) }))
+        .filter(u => u.pts > 0)
+        .sort((a,b) => b.pts - a.pts)
+        .slice(0, 3);
+
+      if(!dayRanking.length) return '';
+
+      const dateObj = new Date(lastDayWithResults + 'T12:00:00');
+      const dateStr = dateObj.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+
+      const medals = ['🥇','🥈','🥉'];
+      const rows = dayRanking.map((u,i) => `
+        <div class="md-row ${u.key===currentUser?'me':''}">
+          <span class="md-medal">${medals[i]}</span>
+          ${u.club ? clubBadge(u.club, 18) : '<span style="width:18px"></span>'}
+          <span class="md-name">${u.name}${u.key===currentUser?' (vos)':''}</span>
+          <span class="md-pts">+${u.pts}</span>
+        </div>`).join('');
+
+      return `<div class="matchday-card">
+        <div class="matchday-header">
+          <span class="matchday-title">⭐ Top del día</span>
+          <span class="matchday-date">${dateStr} · ${playedCount}/${totalCount} partidos</span>
+        </div>
+        ${rows}
+      </div>`;
+    }
+
     // ── BANNER PRÓXIMO PARTIDO ──
     function renderNextMatchBanner() {
       const nextM = getNextMatch();
@@ -674,6 +744,7 @@
       return `<div class="section-title">Tabla de Posiciones</div>
         <div class="live-badge">🟢 En tiempo real</div>
         ${podiumHTML}
+        ${renderMatchdayRanking()}
         <table class="leaderboard-table">
           <thead><tr><th>#</th><th>Jugador</th><th>Pron.</th><th>Exactos</th><th>Ganador</th><th>Pts</th></tr></thead>
           <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Sin jugadores aún</td></tr>'}</tbody>
@@ -1092,6 +1163,12 @@
       if(!h||!a||h.value===''||a.value===''){showToast('⚠️ Ingresá ambos marcadores','err');return;}
       try{
         await updateDoc(doc(db,'users',currentUser),{[`predictions.${mid}`]:{home:parseInt(h.value),away:parseInt(a.value)}});
+        // Animar la tarjeta del partido
+        const card = h.closest('.match-card');
+        if(card) {
+          card.classList.add('pulse-save');
+          setTimeout(()=>card.classList.remove('pulse-save'), 800);
+        }
         showToast('✅ Pronóstico guardado');
       } catch(e) {
         if(e.code==='permission-denied'){
@@ -1115,6 +1192,46 @@
       catch(e){showToast('❌ Error al borrar','err');}
     };
 
+
+    window.__showReactPicker = (msgId, bubble) => {
+      // Eliminar picker anterior si existe
+      document.querySelectorAll('.react-picker').forEach(p => p.remove());
+      const picker = document.createElement('div');
+      picker.className = 'react-picker';
+      const emojis = ['👏','😂','🔥','⚽','💪','😮'];
+      picker.innerHTML = emojis.map(e =>
+        '<span class="react-picker-emoji" onclick="event.stopPropagation();window.__toggleReact(\''+msgId+'\',\''+e+'\');">' + e + '</span>'
+      ).join('');
+      bubble.parentElement.appendChild(picker);
+      // Cerrar al tocar fuera
+      setTimeout(()=>{
+        document.addEventListener('click', function closePicker(ev){
+          if(!picker.contains(ev.target)) {
+            picker.remove();
+            document.removeEventListener('click', closePicker);
+          }
+        });
+      }, 50);
+    };
+
+    window.__toggleReact = async (msgId, emoji) => {
+      document.querySelectorAll('.react-picker').forEach(p => p.remove());
+      const msg = chatMessages.find(m => m.id === msgId);
+      if(!msg) return;
+      const current = msg.reactions?.[currentUser];
+      try {
+        const newReacts = {...(msg.reactions||{})};
+        if(current === emoji) {
+          // Quitar reacción
+          delete newReacts[currentUser];
+        } else {
+          newReacts[currentUser] = emoji;
+        }
+        await updateDoc(doc(db,'chat',msgId), { reactions: newReacts });
+      } catch(e) {
+        showToast('❌ No se pudo reaccionar', 'err');
+      }
+    };
 
     window.__sendChat = async () => {
       const input = document.getElementById('chat-input');
