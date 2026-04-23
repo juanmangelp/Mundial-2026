@@ -606,6 +606,20 @@
       const cards=filtered.map(m=>{
         const status=getMatchStatus(m),pred=preds[m.id]||{},res=results[m.id],cd=getCountdown(m),isOpen=status==='open';
         const revealed = (status==='live'||status==='closed');
+        // El admin ve solo los resultados, sin inputs de pronóstico
+        const adminView = isAdmin() && !PLAYER_ADMINS.includes(currentUser);
+        const centerZone = adminView
+          ? (res
+              ? `<div class="result-final">${res.home}-${res.away}</div><div class="result-label">RESULTADO FINAL</div>`
+              : `<div style="font-size:12px;color:var(--muted);text-align:center">Sin resultado</div>`)
+          : `${res?`<div class="result-final">${res.home}-${res.away}</div><div class="result-label">RESULTADO FINAL</div>`:''}
+              <div class="score-inputs">
+                <input class="score-input" type="number" min="0" max="20" inputmode="numeric" id="h${m.id}" value="${pred.home!==undefined?pred.home:''}" ${!isOpen?'disabled':''}>
+                <span class="vs-text">-</span>
+                <input class="score-input" type="number" min="0" max="20" inputmode="numeric" id="a${m.id}" value="${pred.away!==undefined?pred.away:''}" ${!isOpen?'disabled':''}>
+              </div>
+              ${isOpen?`<button class="btn-predict" onclick="window.__savePred(${m.id})">Guardar</button>`:''}
+              ${pred.home!==undefined?`<div class="prediction-saved">✓ Tu pronóstico: ${pred.home}-${pred.away}</div>`:''}`;
         return `<div class="match-card ${status==='live'?'is-live':status==='closed'?'is-closed':''}">
           <div class="match-header">
             <div class="match-meta">
@@ -619,16 +633,7 @@
           </div>
           <div class="match-teams">
             ${teamBlock(m.home)}
-            <div class="vs-zone">
-              ${res?`<div class="result-final">${res.home}-${res.away}</div><div class="result-label">RESULTADO FINAL</div>`:''}
-              <div class="score-inputs">
-                <input class="score-input" type="number" min="0" max="20" inputmode="numeric" id="h${m.id}" value="${pred.home!==undefined?pred.home:''}" ${!isOpen?'disabled':''}>
-                <span class="vs-text">-</span>
-                <input class="score-input" type="number" min="0" max="20" inputmode="numeric" id="a${m.id}" value="${pred.away!==undefined?pred.away:''}" ${!isOpen?'disabled':''}>
-              </div>
-              ${isOpen?`<button class="btn-predict" onclick="window.__savePred(${m.id})">Guardar</button>`:''}
-              ${pred.home!==undefined?`<div class="prediction-saved">✓ Tu pronóstico: ${pred.home}-${pred.away}</div>`:''}
-            </div>
+            <div class="vs-zone">${centerZone}</div>
             ${teamBlock(m.away)}
           </div>
           ${revealed?renderRevealedPreds(m.id, res):''}
