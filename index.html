@@ -20,6 +20,13 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import {
       getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
       collection, onSnapshot, addDoc, query, orderBy, limit, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -35,12 +42,15 @@
 
     const firebaseApp = initializeApp(firebaseConfig);
     const db = getFirestore(firebaseApp);
+    const auth = getAuth(firebaseApp);
 
-    // Admin puro (sin cuenta Firestore, no aparece en tabla)
-    const PURE_ADMINS = { 'admin': 'admin2026' };
-    // Jugadores con permisos admin (tienen cuenta Firestore, SÍ aparecen en tabla y pronósticos)
+    // ── IMPORTANTE: estos son los usernames que tienen rol admin ──
+    // El claim real se setea via script en el servidor (ver set-admin-claim.js)
+    // Acá solo se usa para la UI (el claim de Firestore es lo que realmente protege)
     const PLAYER_ADMINS = ['juanman'];
-    const ADMIN_USER = 'admin';
+
+    // Email ficticio: username@prode.app (nunca se muestra al usuario)
+    const toEmail = username => `${username.toLowerCase().trim()}@prode.app`;
 
     const CDN = 'https://paladarnegro.net/escudoteca/mundial2026/mundial2026/png/';
     const CDN_ARG = 'https://paladarnegro.net/escudoteca/argentina/primeradivision/png/';
@@ -75,7 +85,6 @@
       { id:'atleticotucuman',name:'Atlético Tucumán',      crest: CDN_ARG+'atleticotucuman.png' },
     ];
 
-    // ── Grupos del Mundial 2026 ──
     const GROUPS = {
       A: ['México','Sudáfrica','Corea del Sur','Rep. Checa'],
       B: ['Canadá','Bosnia y Herz.','Qatar','Suiza'],
@@ -92,7 +101,6 @@
     };
 
     const TEAMS = {
-      // Ranking FIFA oficial — 1 abril 2026
       'Francia':         { rank:1,  flag:'🇫🇷', crest: CDN+'francia.png' },
       'España':          { rank:2,  flag:'🇪🇸', crest: CDN+'espana.png' },
       'Argentina':       { rank:3,  flag:'🇦🇷', crest: CDN+'argentina.png' },
@@ -219,7 +227,10 @@
     ];
 
     // ── Estado ──
-    let currentUser = null, currentView = 'matches', matchFilter = 'all';
+    let currentUser = null;   // username string (ej: 'juanman')
+    let currentUID  = null;   // Firebase Auth UID
+    let isAdminClaim = false; // viene del ID token claim
+    let currentView = 'matches', matchFilter = 'all';
     let adminFilter = 'pending', isRegister = false;
     let allUsers = {}, results = {}, groupStats = {};
     let unsubUsers = null, unsubRes = null;
@@ -227,7 +238,47 @@
     window.__unreadChat = 0;
     let lastSeenChat = 0;
 
-    const isAdmin = () => Object.keys(PURE_ADMINS).includes(currentUser) || PLAYER_ADMINS.includes(currentUser);
+    // ── Helper: isAdmin usa el custom claim (verificado por Firebase) ──
+    const isAdmin = () => isAdminClaim;
+
+    // ── Leer custom claim del token ──
+    async function refreshAdminClaim(user) {
+      if (!user) { isAdminClaim = false; return; }
+      const token = await user.getIdTokenResult();
+      isAdminClaim = token.claims.admin === true;
+    }
+
+    // ── Auth state listener ──
+    onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        currentUID = firebaseUser.uid;
+        await refreshAdminClaim(firebaseUser);
+        // Leer username desde Firestore (guardado en el doc del usuario)
+        const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          currentUser = data.username;
+          // Verificar status (salvo admin)
+          if (!isAdminClaim && data.status !== 'approved') {
+            // Mostrar pantalla de espera sin cargar listeners
+            document.getElementById('app').innerHTML = renderPendingScreen(data.name);
+            return;
+          }
+          startListening();
+        } else {
+          // Doc no existe todavía (raro), logout
+          await signOut(auth);
+        }
+      } else {
+        currentUID  = null;
+        currentUser = null;
+        isAdminClaim = false;
+        if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+        if (unsubRes)   { unsubRes();   unsubRes   = null; }
+        if (unsubChat)  { unsubChat();  unsubChat  = null; }
+        render();
+      }
+    });
 
     function getMatchStatus(m) {
       const diff = (new Date(`${m.date}T${m.time}:00`) - new Date()) / 60000;
@@ -247,15 +298,12 @@
     function calcMatchPts(p, r) {
       if(!r) return null;
       let pts = 0;
-      // +1 acertar ganador o empate
       const pw = p.home>p.away?1:p.home<p.away?-1:0;
       const rw = r.home>r.away?1:r.home<r.away?-1:0;
       if(pw===rw) pts += 1;
-      // +1 acertar goles de 1 equipo
       const homeOk = p.home===r.home;
       const awayOk = p.away===r.away;
       if(homeOk || awayOk) pts += 1;
-      // +1 adicional por acertar goles de los 2 equipos
       if(homeOk && awayOk) pts += 1;
       return pts;
     }
@@ -275,10 +323,8 @@
       return {pts,exact,winner};
     }
 
-    // Calcula racha actual de aciertos consecutivos (partidos jugados en orden cronológico)
     function calcStreak(u) {
       const preds = u.predictions || {};
-      // Ordenar partidos jugados por fecha
       const playedMatches = MATCHES
         .filter(m => results[m.id] && preds[m.id])
         .sort((a,b) => new Date(b.date+'T'+b.time+':00') - new Date(a.date+'T'+a.time+':00'));
@@ -291,7 +337,6 @@
       return streak;
     }
 
-    // Calcula puntos de un usuario en un rango de partidos (por fecha)
     function calcDayScore(u, matchIds) {
       let pts = 0;
       for (const mid of matchIds) {
@@ -301,7 +346,6 @@
       return pts;
     }
 
-    // Agrupa partidos por fecha (día calendario)
     function getMatchdays() {
       const days = {};
       MATCHES.forEach(m => {
@@ -311,7 +355,6 @@
       return days;
     }
 
-    // Encuentra el próximo partido (el más cercano en el futuro)
     function getNextMatch() {
       const now = new Date();
       return MATCHES.find(m => new Date(m.date+'T'+m.time+':00') > now);
@@ -328,7 +371,6 @@
       return mn+'m '+s+'s';
     }
 
-    // ── Calcula tabla de posiciones por grupo ──
     function calcGroupStandings() {
       const stats = {};
       Object.entries(GROUPS).forEach(([g, teams]) => {
@@ -352,9 +394,7 @@
       groupStats = stats;
     }
 
-    function getClub(clubId) {
-      return CLUBS.find(c => c.id === clubId) || null;
-    }
+    function getClub(clubId) { return CLUBS.find(c => c.id === clubId) || null; }
 
     function clubBadge(clubId, size=18) {
       const c = getClub(clubId);
@@ -391,11 +431,10 @@
       </div>`;
     }
 
-    // ── Pronósticos revelados cuando el partido empieza ──
     function renderRevealedPreds(matchId, res) {
-      const players = Object.entries(allUsers).filter(([k,u])=>!Object.keys(PURE_ADMINS).includes(k)&&u.status==='approved');
+      const players = Object.entries(allUsers).filter(([k,u])=>u.status==='approved');
       if (!players.length) return '';
-      const rows = players.map(([key, u]) => {
+      const rows = players.map(([uid, u]) => {
         const pred = u.predictions?.[matchId];
         if (!pred) return `<div class="pred-row">
           <span class="pred-player">${u.name}</span>
@@ -423,30 +462,33 @@
 
     function startListening() {
       if (unsubUsers) unsubUsers();
-      if (unsubRes) unsubRes();
-      if (unsubChat) unsubChat();
+      if (unsubRes)   unsubRes();
+      if (unsubChat)  unsubChat();
 
+      // Ahora los docs de usuarios se indexan por UID (no por username)
       unsubUsers = onSnapshot(collection(db,'users'), snap => {
-        allUsers={}; snap.forEach(d=>{allUsers[d.id]=d.data();}); calcGroupStandings(); render();
+        allUsers={};
+        snap.forEach(d => { allUsers[d.id] = d.data(); });
+        calcGroupStandings();
+        render();
       });
       unsubRes = onSnapshot(doc(db,'config','results'), snap => {
-        results=snap.exists()?snap.data():{}; calcGroupStandings(); render();
+        results = snap.exists() ? snap.data() : {};
+        calcGroupStandings();
+        render();
       });
 
       const chatQ = query(collection(db,'chat'), orderBy('ts','asc'), limit(100));
       unsubChat = onSnapshot(chatQ, snap => {
         chatMessages = [];
         snap.forEach(d => chatMessages.push({id:d.id,...d.data()}));
-        // Count unread
-        const newUnread = chatMessages.filter(m=>m.ts&&m.ts.toMillis&&m.ts.toMillis()>lastSeenChat&&m.user!==currentUser).length;
+        const newUnread = chatMessages.filter(m=>m.ts&&m.ts.toMillis&&m.ts.toMillis()>lastSeenChat&&m.uid!==currentUID).length;
         window.__unreadChat = newUnread;
-        // Re-render nav badge without full re-render if in chat
         if(currentView==='chat'){
           lastSeenChat = Date.now();
           window.__unreadChat = 0;
           renderChatMessages();
         } else {
-          // Just update the badge
           const badge = document.querySelector('.chat-badge');
           if(badge) badge.textContent = newUnread>0?newUnread:'';
         }
@@ -457,7 +499,8 @@
     function render() {
       const app = document.getElementById('app');
       if (!currentUser) { app.innerHTML = renderLogin(); return; }
-      const name = allUsers[currentUser]?.name || currentUser;
+      const userData = allUsers[currentUID] || {};
+      const name = userData.name || currentUser;
       app.innerHTML = `
         <div class="header">
           <div class="logo">
@@ -468,7 +511,7 @@
             ${isAdmin()?'<span class="admin-badge">⚙️ ADMIN</span>':''}
             <div class="avatar">${name.substring(0,2).toUpperCase()}</div>
             <span class="user-name" style="display:flex;align-items:center;gap:5px">
-              ${allUsers[currentUser]?.club ? clubBadge(allUsers[currentUser].club, 18) : ''}
+              ${userData.club ? clubBadge(userData.club, 18) : ''}
               ${name}
             </span>
             <button class="btn-logout" onclick="window.__logout()">Salir</button>
@@ -497,54 +540,40 @@
       if (currentView==='groups')      return renderGroups();
       if (currentView==='leaderboard') return renderLeaderboard();
       if (currentView==='mypreds')     return renderMyPreds();
-      if (currentView==='chat')       return renderChat();
-      if (currentView==='profile')    return renderProfile();
-      if (currentView==='admin'&&isAdmin()) return renderAdmin();
+      if (currentView==='chat')        return renderChat();
+      if (currentView==='profile')     return renderProfile();
+      if (currentView==='admin' && isAdmin()) return renderAdmin();
       return '';
     }
 
-
-
-    // ── MINI-RANKING POR FECHA ──
     function renderMatchdayRanking() {
       const days = getMatchdays();
-      // Encontrar el último día con resultados cargados
       const sortedDays = Object.keys(days).sort().reverse();
       let lastDayWithResults = null;
       for (const d of sortedDays) {
-        if(days[d].some(mid => results[mid])) {
-          lastDayWithResults = d;
-          break;
-        }
+        if(days[d].some(mid => results[mid])) { lastDayWithResults = d; break; }
       }
       if(!lastDayWithResults) return '';
-
       const matchIds = days[lastDayWithResults];
       const playedCount = matchIds.filter(mid => results[mid]).length;
       const totalCount = matchIds.length;
-
-      // Ranking de aprobados del día
-      const approved = Object.entries(allUsers).filter(([k,u]) => !Object.keys(PURE_ADMINS).includes(k) && u.status === 'approved');
+      const approved = Object.entries(allUsers).filter(([k,u]) => u.status === 'approved');
       const dayRanking = approved
-        .map(([key, u]) => ({ key, name: u.name, club: u.club, pts: calcDayScore(u, matchIds) }))
+        .map(([uid, u]) => ({ uid, name: u.name, club: u.club, pts: calcDayScore(u, matchIds) }))
         .filter(u => u.pts > 0)
         .sort((a,b) => b.pts - a.pts)
         .slice(0, 3);
-
       if(!dayRanking.length) return '';
-
       const dateObj = new Date(lastDayWithResults + 'T12:00:00');
       const dateStr = dateObj.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
-
       const medals = ['🥇','🥈','🥉'];
       const rows = dayRanking.map((u,i) => `
-        <div class="md-row ${u.key===currentUser?'me':''}">
+        <div class="md-row ${u.uid===currentUID?'me':''}">
           <span class="md-medal">${medals[i]}</span>
           ${u.club ? clubBadge(u.club, 18) : '<span style="width:18px"></span>'}
-          <span class="md-name">${u.name}${u.key===currentUser?' (vos)':''}</span>
+          <span class="md-name">${u.name}${u.uid===currentUID?' (vos)':''}</span>
           <span class="md-pts">+${u.pts}</span>
         </div>`).join('');
-
       return `<div class="matchday-card">
         <div class="matchday-header">
           <span class="matchday-title">⭐ Top del día</span>
@@ -554,7 +583,6 @@
       </div>`;
     }
 
-    // ── BANNER PRÓXIMO PARTIDO ──
     function renderNextMatchBanner() {
       const nextM = getNextMatch();
       if(!nextM) return '';
@@ -562,7 +590,6 @@
       const at = TEAMS[nextM.away]||{};
       const diff = new Date(nextM.date+'T'+nextM.time+':00') - new Date();
       const isLive = diff < 0 && diff > -110*60000;
-
       return `<div class="next-match-banner ${isLive?'live':''}">
         <div class="next-match-label">${isLive?'🔴 EN VIVO AHORA':'⏱ PRÓXIMO PARTIDO'}</div>
         <div class="next-match-teams">
@@ -585,29 +612,24 @@
       </div>`;
     }
 
-    // Actualiza el countdown cada segundo
     setInterval(() => {
       const el = document.getElementById('next-match-countdown');
       if(!el) return;
       const ts = parseInt(el.getAttribute('data-ts'));
       const diff = ts - Date.now();
-      if(diff > -110*60000 && diff < 0) {
-        el.textContent = '⚽ Jugando';
-      } else if(diff > 0) {
-        el.textContent = formatCountdown(diff);
-      }
+      if(diff > -110*60000 && diff < 0) { el.textContent = '⚽ Jugando'; }
+      else if(diff > 0) { el.textContent = formatCountdown(diff); }
     }, 1000);
 
-    // ── PARTIDOS ──
     function renderMatches() {
       const labels={all:'Todos',open:'Abiertos',closed:'Cerrados'};
       const filtered=MATCHES.filter(m=>matchFilter==='all'||getMatchStatus(m)===matchFilter);
-      const preds=allUsers[currentUser]?.predictions||{};
+      const myData = allUsers[currentUID] || {};
+      const preds = myData.predictions || {};
+      const adminView = isAdmin() && !PLAYER_ADMINS.includes(currentUser);
       const cards=filtered.map(m=>{
         const status=getMatchStatus(m),pred=preds[m.id]||{},res=results[m.id],cd=getCountdown(m),isOpen=status==='open';
         const revealed = (status==='live'||status==='closed');
-        // El admin ve solo los resultados, sin inputs de pronóstico
-        const adminView = isAdmin() && !PLAYER_ADMINS.includes(currentUser);
         const centerZone = adminView
           ? (res
               ? `<div class="result-final">${res.home}-${res.away}</div><div class="result-label">RESULTADO FINAL</div>`
@@ -647,7 +669,6 @@
         ${cards||'<div class="empty-state"><div class="icon">🔍</div><p>No hay partidos en esta categoría</p></div>'}`;
     }
 
-    // ── GRUPOS ──
     function renderGroups() {
       const groupKeys = Object.keys(GROUPS);
       const cards = groupKeys.map(g => {
@@ -669,20 +690,14 @@
                 <span>${name}</span>
               </div>
             </td>
-            <td>${s.pj}</td>
-            <td>${s.pg}</td>
-            <td>${s.pe}</td>
-            <td>${s.pp}</td>
-            <td>${s.gf}:${s.gc}</td>
-            <td class="pts-cell">${s.pts}</td>
+            <td>${s.pj}</td><td>${s.pg}</td><td>${s.pe}</td><td>${s.pp}</td>
+            <td>${s.gf}:${s.gc}</td><td class="pts-cell">${s.pts}</td>
           </tr>`;
         }).join('');
         return `<div class="group-card">
           <div class="group-card-header">GRUPO ${g}</div>
           <table class="group-table">
-            <thead><tr>
-              <th>Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GD</th><th>Pts</th>
-            </tr></thead>
+            <thead><tr><th>Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GD</th><th>Pts</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
@@ -695,24 +710,22 @@
         <div class="groups-grid">${cards}</div>`;
     }
 
-    // ── TABLA ──
     function renderLeaderboard() {
-      const ranking=Object.entries(allUsers).filter(([k,u])=>!Object.keys(PURE_ADMINS).includes(k)&&u.status==='approved')
-        .map(([key,u])=>({key,name:u.name,club:u.club,streak:calcStreak(u),...calcScore(u),predCount:Object.keys(u.predictions||{}).length}))
-        .sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
+      const ranking = Object.entries(allUsers)
+        .filter(([uid,u]) => u.status==='approved')
+        .map(([uid,u]) => ({uid, name:u.name, club:u.club, streak:calcStreak(u), ...calcScore(u), predCount:Object.keys(u.predictions||{}).length}))
+        .sort((a,b) => b.pts-a.pts || b.exact-a.exact);
 
-      // ── PODIO TOP 3 ──
       const top3 = ranking.slice(0,3);
       let podiumHTML = '';
       if(top3.length >= 1) {
         const medals = ['🥇','🥈','🥉'];
         const colors = ['#f5c842','#c0c0c0','#cd7f32'];
         const sizes = [1, 0.88, 0.82];
-        // Orden visual: 2º, 1º, 3º (estilo podio real)
         const order = top3.length===3 ? [1,0,2] : top3.length===2 ? [1,0] : [0];
         const podiumCards = order.map(idx => {
           const u = top3[idx];
-          const isMe = u.key === currentUser;
+          const isMe = u.uid === currentUID;
           return `<div class="podium-card ${isMe?'me':''}" style="transform:scale(${sizes[idx]})">
             <div class="podium-medal" style="color:${colors[idx]}">${medals[idx]}</div>
             <div class="podium-avatar" style="${idx===0?'border-color:'+colors[idx]:''}">
@@ -726,14 +739,14 @@
         podiumHTML = `<div class="podium-wrap"><div class="podium">${podiumCards}</div></div>`;
       }
 
-      const rows=ranking.map((u,i)=>`<tr class="${u.key===currentUser?'highlight-row':''}">
+      const rows = ranking.map((u,i) => `<tr class="${u.uid===currentUID?'highlight-row':''}">
         <td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="rank-n">${i+1}</span>`}</td>
         <td>
           <div style="display:flex;align-items:center;gap:7px">
             ${u.club ? clubBadge(u.club, 22) : ''}
             <div>
               <div class="player-name">
-                ${u.name}${u.key===currentUser?' (vos)':''}
+                ${u.name}${u.uid===currentUID?' (vos)':''}
                 ${u.streak>=3?`<span class="streak-badge" title="${u.streak} aciertos seguidos">🔥 ${u.streak}</span>`:''}
               </div>
               ${u.club ? `<div style="font-size:10px;color:var(--muted)">${getClub(u.club)?.name||''}</div>` : ''}
@@ -762,15 +775,16 @@
         </div>`;
     }
 
-    // ── MIS PRONÓSTICOS ──
     function renderMyPreds() {
-      const preds=allUsers[currentUser]?.predictions||{},entries=Object.entries(preds);
+      const myData = allUsers[currentUID] || {};
+      const preds = myData.predictions || {};
+      const entries = Object.entries(preds);
       if(!entries.length) return `<div class="section-title">Mis Pronósticos</div>
         <div class="empty-state"><div class="icon">📝</div><p>Aún no hiciste ningún pronóstico.<br>¡Entrá a Partidos!</p></div>`;
       let totalPts=0;
       const items=entries.map(([mid,pred])=>{
         const match=MATCHES.find(m=>m.id==mid); if(!match) return '';
-        const res=results[mid],ht=TEAMS[match.home]||{},at=TEAMS[match.away]||{};
+        const res=results[mid];
         let tag='<span class="pred-result res-pending">Pendiente</span>';
         if(res){
           const mp = calcMatchPts(pred, res);
@@ -797,8 +811,6 @@
         ${items}`;
     }
 
-
-    // ── CHAT ──
     function renderChat() {
       lastSeenChat = Date.now();
       window.__unreadChat = 0;
@@ -819,11 +831,9 @@
 
     function renderChatMessagesHTML() {
       if(!chatMessages.length) return '<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:14px">Nadie habló todavía.<br>¡Sé el primero! 👋</div>';
-      let html = "";
-      let lastDate = "";
+      let html = "", lastDate = "";
       chatMessages.forEach(m => {
-        const isMine = m.user === currentUser;
-        const userName = allUsers[m.user]?.name || m.user;
+        const isMine = m.uid === currentUID;
         const ts = m.ts?.toDate ? m.ts.toDate() : new Date();
         const dateStr = ts.toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"});
         const timeStr = ts.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
@@ -831,11 +841,13 @@
           html += "<div class=\"chat-date-sep\">"+dateStr+"</div>";
           lastDate = dateStr;
         }
+        const senderData = Object.values(allUsers).find(u => u.uid === m.uid) || {};
+        const userName = senderData.name || m.name || 'Jugador';
         const initials = userName.substring(0,2).toUpperCase();
         html += "<div class=\"chat-msg-row "+(isMine?"mine":"")+"\">"+
           (!isMine?"<div class=\"chat-avatar\">"+initials+"</div>":"")+
           "<div class=\"chat-bubble "+(isMine?"mine":"")+"\">"+
-          (!isMine?"<div class=\"chat-username\" style=\"display:flex;align-items:center;gap:4px\">"+(allUsers[m.user]?.club?'<img src="'+getClub(allUsers[m.user].club)?.crest+'" style="object-fit:contain">>':'')+userName+"</div>":"")+
+          (!isMine?"<div class=\"chat-username\">"+userName+"</div>":"")+
           "<div class=\"chat-text\">"+escapeHtml(m.text)+"</div>"+
           "<div class=\"chat-time\">"+timeStr+"</div>"+
           "</div>"+
@@ -856,16 +868,9 @@
       return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     }
 
-
-    // ── PERFIL ──
     function renderProfile() {
-      const u = allUsers[currentUser] || {};
+      const u = allUsers[currentUID] || {};
       const currentClub = u.club || null;
-      const clubOptions = CLUBS.map(c => {
-        const sel = c.id === currentClub ? 'selected' : '';
-        return `<option value="${c.id}" ${sel}>${c.name}</option>`;
-      }).join('');
-
       return `
         <div class="section-title">👤 Mi Perfil</div>
         <div class="profile-card">
@@ -875,7 +880,6 @@
             <div class="profile-user">@${currentUser}</div>
           </div>
         </div>
-
         <div class="profile-section-title">🏟️ ¿De qué equipo sos?</div>
         <div class="club-grid" id="club-grid">
           ${CLUBS.map(c => `
@@ -897,10 +901,9 @@
       `;
     }
 
-    // ── ADMIN ──
     function renderAdmin() {
       const played=MATCHES.filter(m=>results[m.id]),pending=MATCHES.filter(m=>!results[m.id]);
-      const players=Object.entries(allUsers).filter(([k])=>!Object.keys(PURE_ADMINS).includes(k));
+      const players=Object.entries(allUsers);
       const filteredMatches=MATCHES.filter(m=>{
         if(adminFilter==='pending') return !results[m.id];
         if(adminFilter==='played')  return !!results[m.id];
@@ -955,70 +958,57 @@
           }).join('')}
         </div>
         ${(()=>{
-          const pending = players.filter(([k,u])=>u.status==='pending'||!u.status);
-          const approved = players.filter(([k,u])=>u.status==='approved');
-          const rejected = players.filter(([k,u])=>u.status==='rejected');
-
+          const pendingU = players.filter(([uid,u])=>u.status==='pending'||!u.status);
+          const approved = players.filter(([uid,u])=>u.status==='approved');
+          const rejected = players.filter(([uid,u])=>u.status==='rejected');
           let html = '';
-
-          // Pendientes
-          if(pending.length) {
-            html += `<div class="admin-section-title" style="margin-top:24px;color:#f97070">
-              🔴 Esperando aprobación (${pending.length})
-            </div>
+          if(pendingU.length) {
+            html += `<div class="admin-section-title" style="margin-top:24px;color:#f97070">🔴 Esperando aprobación (${pendingU.length})</div>
             <div class="admin-players" style="margin-bottom:12px">
-              ${pending.map(([key,u])=>`
+              ${pendingU.map(([uid,u])=>`
                 <div class="admin-player-row">
                   <div class="avatar" style="width:34px;height:34px;font-size:12px;background:#da3633">${u.name.substring(0,2).toUpperCase()}</div>
                   <div style="flex:1;min-width:0">
                     <div style="font-weight:600;font-size:13px">${u.name}</div>
-                    <div style="font-size:11px;color:var(--muted)">@${key}</div>
+                    <div style="font-size:11px;color:var(--muted)">@${u.username}</div>
                   </div>
                   <div style="display:flex;gap:6px;flex-shrink:0">
-                    <button onclick="window.__approveUser('${key}')" style="background:var(--green);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;touch-action:manipulation">✅ Aprobar</button>
-                    <button onclick="window.__rejectUser('${key}')" style="background:none;border:1px solid rgba(218,54,51,0.5);color:#f97070;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;touch-action:manipulation">✗</button>
-                    <button onclick="window.__deleteUser('${key}')" title="Borrar usuario" style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation">🗑</button>
+                    <button onclick="window.__approveUser('${uid}')" style="background:var(--green);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;touch-action:manipulation">✅ Aprobar</button>
+                    <button onclick="window.__rejectUser('${uid}')" style="background:none;border:1px solid rgba(218,54,51,0.5);color:#f97070;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:12px;touch-action:manipulation">✗</button>
+                    <button onclick="window.__deleteUser('${uid}')" title="Borrar usuario" style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation">🗑</button>
                   </div>
                 </div>`).join('')}
             </div>`;
           }
-
-          // Aprobados
-          html += `<div class="admin-section-title" style="margin-top:${pending.length?'8px':'24px'}">
-            👥 Jugadores aprobados (${approved.length})
-          </div>
+          html += `<div class="admin-section-title" style="margin-top:${pendingU.length?'8px':'24px'}">👥 Jugadores aprobados (${approved.length})</div>
           <div class="admin-players">
-            ${approved.length ? approved.map(([key,u])=>{const s=calcScore(u);return `
+            ${approved.length ? approved.map(([uid,u])=>{const s=calcScore(u);return `
               <div class="admin-player-row">
                 <div class="avatar" style="width:34px;height:34px;font-size:12px">${u.name.substring(0,2).toUpperCase()}</div>
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px">${u.club?clubBadge(u.club,16):''}${u.name}</div>
-                  <div style="font-size:11px;color:var(--muted)">@${key} · ${Object.keys(u.predictions||{}).length} pronósticos</div>
+                  <div style="font-size:11px;color:var(--muted)">@${u.username} · ${Object.keys(u.predictions||{}).length} pronósticos</div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                   <div style="text-align:right"><div class="pts" style="font-size:18px">${s.pts}</div><div class="pts-label">pts</div></div>
-                  <button onclick="window.__deleteUser('${key}')" title="Borrar usuario"
+                  <button onclick="window.__deleteUser('${uid}')" title="Borrar usuario"
                     style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;flex-shrink:0">🗑</button>
                 </div>
               </div>`;}).join('') : '<div style="color:var(--muted);padding:16px;font-size:13px">Sin jugadores aprobados aún</div>'}
           </div>`;
-
-          // Rechazados
           if(rejected.length) {
-            html += `<div class="admin-section-title" style="margin-top:12px;color:var(--muted)">
-              🚫 Rechazados (${rejected.length})
-            </div>
+            html += `<div class="admin-section-title" style="margin-top:12px;color:var(--muted)">🚫 Rechazados (${rejected.length})</div>
             <div class="admin-players">
-              ${rejected.map(([key,u])=>`
+              ${rejected.map(([uid,u])=>`
                 <div class="admin-player-row" style="opacity:0.5">
                   <div class="avatar" style="width:34px;height:34px;font-size:12px;background:var(--dark3)">${u.name.substring(0,2).toUpperCase()}</div>
                   <div style="flex:1;min-width:0">
                     <div style="font-weight:600;font-size:13px">${u.name}</div>
-                    <div style="font-size:11px;color:var(--muted)">@${key}</div>
+                    <div style="font-size:11px;color:var(--muted)">@${u.username}</div>
                   </div>
                   <div style="display:flex;gap:6px">
-                    <button onclick="window.__approveUser('${key}')" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:11px;touch-action:manipulation">Rehabilitar</button>
-                    <button onclick="window.__deleteUser('${key}')" title="Borrar usuario" style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation">🗑</button>
+                    <button onclick="window.__approveUser('${uid}')" style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:'Barlow',sans-serif;font-size:11px;touch-action:manipulation">Rehabilitar</button>
+                    <button onclick="window.__deleteUser('${uid}')" title="Borrar usuario" style="background:none;border:1px solid rgba(218,54,51,0.3);color:#f97070;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;touch-action:manipulation">🗑</button>
                   </div>
                 </div>`).join('')}
             </div>`;
@@ -1027,9 +1017,6 @@
         })()}`;
     }
 
-    // ── LOGIN ──
-
-    // ── Pantalla de espera de aprobación ──
     function renderPendingScreen(name) {
       return `<div class="login-page"><div class="login-box">
         <img src="gindangas.png" alt="Gindangas" class="login-logo">
@@ -1045,23 +1032,16 @@
 
     function renderRegClubPicker() {
       let html = '<div class="input-group">';
-      html += '<label>\u00bfDe qu\u00e9 equipo sos? ';
-      html += '<span style="color:#8b949e;font-weight:400">(opcional)</span></label>';
+      html += '<label>¿De qué equipo sos? <span style="color:#8b949e;font-weight:400">(opcional)</span></label>';
       html += '<div class="reg-club-grid" id="reg-club-grid">';
       CLUBS.forEach(function(c) {
-        html += '<div class="reg-club-option" id="rco-' + c.id + '" ';
-        html += 'onclick="window.__selectRegClub(this, \'' + c.id + '\')">';
-        html += '<img src="' + c.crest + '" ';
-        html += 'style="width:36px;height:36px;object-fit:contain;display:block" ';
-        html += 'onerror="this.style.display=\'none\'">';
-        html += '<span style="font-size:8px;color:#8b949e;text-align:center;';
-        html += 'line-height:1.2;margin-top:2px;display:block">' + c.name + '</span>';
+        html += '<div class="reg-club-option" id="rco-' + c.id + '" onclick="window.__selectRegClub(\'' + c.id + '\')">';
+        html += '<img src="' + c.crest + '" style="width:36px;height:36px;object-fit:contain;display:block" onerror="this.style.display=\'none\'">';
+        html += '<span style="font-size:8px;color:#8b949e;text-align:center;line-height:1.2;margin-top:2px;display:block">' + c.name + '</span>';
         html += '</div>';
       });
       html += '</div>';
-      html += '<div id="reg-club-selected" ';
-      html += 'style="display:none;margin-top:8px;font-size:12px;';
-      html += 'color:#4ac261;text-align:center"></div>';
+      html += '<div id="reg-club-selected" style="display:none;margin-top:8px;font-size:12px;color:#4ac261;text-align:center"></div>';
       html += '</div>';
       return html;
     }
@@ -1092,91 +1072,97 @@
     }
 
     // ── ACCIONES ──
-    window.__toggleMode = ()=>{ isRegister=!isRegister; render(); };
+    window.__toggleMode = () => { isRegister=!isRegister; render(); };
 
-    window.__selectRegClub = (elOrId, clubId) => {
-      // Handle both (element, id) and (id) call signatures
-      const id = clubId || elOrId;
+    window.__selectRegClub = (clubId) => {
       document.querySelectorAll('.reg-club-option').forEach(el => el.classList.remove('selected'));
-      const el = document.getElementById('rco-'+id);
+      const el = document.getElementById('rco-'+clubId);
       if(el) el.classList.add('selected');
-      window.__regClub = id;
-      const club = CLUBS.find(c=>c.id===id);
+      window.__regClub = clubId;
+      const club = CLUBS.find(c=>c.id===clubId);
       const sel = document.getElementById('reg-club-selected');
       if(sel && club) { sel.style.display='block'; sel.textContent='✓ '+club.name; }
     };
-    window.__setView        = v =>{ currentView=v; render(); };
-    window.__setFilter      = f =>{ matchFilter=f; render(); };
-    window.__setAdminFilter = f =>{ adminFilter=f; render(); };
+
+    window.__setView        = v => { currentView=v; render(); };
+    window.__setFilter      = f => { matchFilter=f; render(); };
+    window.__setAdminFilter = f => { adminFilter=f; render(); };
 
     window.__doLogin = async () => {
-      const user=document.getElementById('inp-user').value.trim().toLowerCase();
-      const pass=document.getElementById('inp-pass').value;
-      const errEl=document.getElementById('login-error'),btn=document.getElementById('btn-submit');
-      if(!user||!pass){errEl.innerHTML='<div class="error-msg">Completá todos los campos</div>';return;}
-      if(PURE_ADMINS[user]&&PURE_ADMINS[user]===pass){currentUser=user;if(!allUsers[user])allUsers[user]={name:'Admin',predictions:{}};startListening();return;}
-      btn.textContent='Verificando...';btn.disabled=true;
-      try{
-        const snap=await getDoc(doc(db,'users',user));
-        if(!snap.exists()||snap.data().password!==pass){errEl.innerHTML='<div class="error-msg">Usuario o contraseña incorrectos</div>';btn.textContent='Entrar al prode';btn.disabled=false;return;}
-        const userData = snap.data();
-        // Player-admins bypass status check
-        if(!PLAYER_ADMINS.includes(user)) {
-          if(userData.status==='pending'||!userData.status){
-            document.getElementById('app').innerHTML=renderPendingScreen(userData.name);
-            btn.textContent='Entrar al prode';btn.disabled=false;
-            return;
-          }
-          if(userData.status==='rejected'){
-            errEl.innerHTML='<div class="error-msg">Tu cuenta fue rechazada por el administrador.</div>';
-            btn.textContent='Entrar al prode';btn.disabled=false;
-            return;
-          }
-        }
-        currentUser=user;startListening();
-      }catch(e){errEl.innerHTML='<div class="error-msg">Error de conexión</div>';btn.textContent='Entrar al prode';btn.disabled=false;}
+      const username = document.getElementById('inp-user').value.trim().toLowerCase();
+      const pass     = document.getElementById('inp-pass').value;
+      const errEl    = document.getElementById('login-error');
+      const btn      = document.getElementById('btn-submit');
+      if(!username || !pass) { errEl.innerHTML='<div class="error-msg">Completá todos los campos</div>'; return; }
+      btn.textContent='Verificando...'; btn.disabled=true;
+      try {
+        const email = toEmail(username);
+        await signInWithEmailAndPassword(auth, email, pass);
+        // onAuthStateChanged se encarga del resto
+      } catch(e) {
+        const msg = e.code==='auth/invalid-credential'||e.code==='auth/user-not-found'||e.code==='auth/wrong-password'
+          ? 'Usuario o contraseña incorrectos'
+          : 'Error de conexión';
+        errEl.innerHTML=`<div class="error-msg">${msg}</div>`;
+        btn.textContent='Entrar al prode'; btn.disabled=false;
+      }
     };
 
     window.__doRegister = async () => {
-      const name=document.getElementById('inp-name')?.value.trim();
-      const uname=document.getElementById('inp-user').value.trim().toLowerCase().replace(/\s+/g,'_');
-      const pass=document.getElementById('inp-pass').value;
-      const errEl=document.getElementById('login-error'),btn=document.getElementById('btn-submit');
-      if(!name||!uname||!pass){errEl.innerHTML='<div class="error-msg">Completá todos los campos</div>';return;}
-      if(pass.length<4){errEl.innerHTML='<div class="error-msg">Contraseña mínimo 4 caracteres</div>';return;}
-      if(Object.keys(PURE_ADMINS).includes(uname)){errEl.innerHTML='<div class="error-msg">Ese usuario no está disponible</div>';return;}
-      btn.textContent='Creando...';btn.disabled=true;
-      try{
-        const snap=await getDoc(doc(db,'users',uname));
-        if(snap.exists()){errEl.innerHTML='<div class="error-msg">Ese usuario ya existe</div>';btn.textContent='Crear cuenta';btn.disabled=false;return;}
+      const name   = document.getElementById('inp-name')?.value.trim();
+      const uname  = document.getElementById('inp-user').value.trim().toLowerCase().replace(/\s+/g,'_');
+      const pass   = document.getElementById('inp-pass').value;
+      const errEl  = document.getElementById('login-error');
+      const btn    = document.getElementById('btn-submit');
+      if(!name||!uname||!pass) { errEl.innerHTML='<div class="error-msg">Completá todos los campos</div>'; return; }
+      if(pass.length<6) { errEl.innerHTML='<div class="error-msg">Contraseña mínimo 6 caracteres</div>'; return; }
+      btn.textContent='Creando...'; btn.disabled=true;
+      try {
+        const email = toEmail(uname);
+        // Crear en Firebase Auth
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        const uid  = cred.user.uid;
         const regClub = window.__regClub || null;
-        await setDoc(doc(db,'users',uname),{name,password:pass,predictions:{},createdAt:Date.now(),status:'pending',...(regClub?{club:regClub}:{})});
-        // Show waiting screen instead of logging in
-        currentUser=null;
-        document.getElementById('app').innerHTML=renderPendingScreen(name);
-        return;
-      }catch(e){errEl.innerHTML='<div class="error-msg">Error de conexión</div>';btn.textContent='Crear cuenta';btn.disabled=false;}
+        // Guardar datos en Firestore (indexado por UID)
+        await setDoc(doc(db,'users',uid), {
+          name, username: uname, uid,
+          predictions:{}, createdAt: Date.now(),
+          status:'pending',
+          ...(regClub?{club:regClub}:{})
+        });
+        // Logout inmediato: mostrar pantalla de espera
+        await signOut(auth);
+        document.getElementById('app').innerHTML = renderPendingScreen(name);
+      } catch(e) {
+        let msg = 'Error de conexión';
+        if(e.code==='auth/email-already-in-use') msg = 'Ese usuario ya existe';
+        if(e.code==='auth/weak-password') msg = 'Contraseña muy corta (mínimo 6 caracteres)';
+        errEl.innerHTML=`<div class="error-msg">${msg}</div>`;
+        btn.textContent='Crear cuenta'; btn.disabled=false;
+      }
     };
 
-    window.__logout = ()=>{
-      if(unsubUsers){unsubUsers();unsubUsers=null;}if(unsubRes){unsubRes();unsubRes=null;}
-      currentUser=null;currentView='matches';allUsers={};render();
+    window.__logout = async () => {
+      if(unsubUsers){unsubUsers();unsubUsers=null;}
+      if(unsubRes){unsubRes();unsubRes=null;}
+      if(unsubChat){unsubChat();unsubChat=null;}
+      currentUser=null; currentUID=null; isAdminClaim=false;
+      currentView='matches'; allUsers={};
+      await signOut(auth);
     };
 
     window.__savePred = async (mid) => {
-      const h=document.getElementById('h'+mid),a=document.getElementById('a'+mid);
-      if(!h||!a||h.value===''||a.value===''){showToast('⚠️ Ingresá ambos marcadores','err');return;}
-      try{
-        await updateDoc(doc(db,'users',currentUser),{[`predictions.${mid}`]:{home:parseInt(h.value),away:parseInt(a.value)}});
-        // Animar la tarjeta del partido
+      const h=document.getElementById('h'+mid), a=document.getElementById('a'+mid);
+      if(!h||!a||h.value===''||a.value==='') { showToast('⚠️ Ingresá ambos marcadores','err'); return; }
+      try {
+        await updateDoc(doc(db,'users',currentUID), {
+          [`predictions.${mid}`]: {home:parseInt(h.value), away:parseInt(a.value)}
+        });
         const card = h.closest('.match-card');
-        if(card) {
-          card.classList.add('pulse-save');
-          setTimeout(()=>card.classList.remove('pulse-save'), 800);
-        }
+        if(card) { card.classList.add('pulse-save'); setTimeout(()=>card.classList.remove('pulse-save'), 800); }
         showToast('✅ Pronóstico guardado');
       } catch(e) {
-        if(e.code==='permission-denied'){
+        if(e.code==='permission-denied') {
           showToast('🚫 El partido ya empezó, no podés modificar','err');
         } else {
           showToast('❌ Error al guardar','err');
@@ -1185,57 +1171,23 @@
     };
 
     window.__saveResult = async (mid) => {
-      const h=document.getElementById('adm-h'+mid),a=document.getElementById('adm-a'+mid);
-      if(!h||!a||h.value===''||a.value===''){showToast('⚠️ Ingresá ambos goles','err');return;}
-      try{await setDoc(doc(db,'config','results'),{[mid]:{home:parseInt(h.value),away:parseInt(a.value)}},{merge:true});showToast('✅ Resultado guardado');}
-      catch(e){showToast('❌ Error al guardar','err');}
+      const h=document.getElementById('adm-h'+mid), a=document.getElementById('adm-a'+mid);
+      if(!h||!a||h.value===''||a.value==='') { showToast('⚠️ Ingresá ambos goles','err'); return; }
+      try {
+        await setDoc(doc(db,'config','results'),{[mid]:{home:parseInt(h.value),away:parseInt(a.value)}},{merge:true});
+        showToast('✅ Resultado guardado');
+      } catch(e) {
+        showToast('❌ Error al guardar: sin permisos','err');
+      }
     };
 
     window.__clearResult = async (mid) => {
       if(!confirm('¿Borrar el resultado?')) return;
-      try{const snap=await getDoc(doc(db,'config','results'));if(snap.exists()){const d=snap.data();delete d[mid];await setDoc(doc(db,'config','results'),d);}showToast('🗑 Resultado borrado');}
-      catch(e){showToast('❌ Error al borrar','err');}
-    };
-
-
-    window.__showReactPicker = (msgId, bubble) => {
-      // Eliminar picker anterior si existe
-      document.querySelectorAll('.react-picker').forEach(p => p.remove());
-      const picker = document.createElement('div');
-      picker.className = 'react-picker';
-      const emojis = ['👏','😂','🔥','⚽','💪','😮'];
-      picker.innerHTML = emojis.map(e =>
-        '<span class="react-picker-emoji" onclick="event.stopPropagation();window.__toggleReact(\''+msgId+'\',\''+e+'\');">' + e + '</span>'
-      ).join('');
-      bubble.parentElement.appendChild(picker);
-      // Cerrar al tocar fuera
-      setTimeout(()=>{
-        document.addEventListener('click', function closePicker(ev){
-          if(!picker.contains(ev.target)) {
-            picker.remove();
-            document.removeEventListener('click', closePicker);
-          }
-        });
-      }, 50);
-    };
-
-    window.__toggleReact = async (msgId, emoji) => {
-      document.querySelectorAll('.react-picker').forEach(p => p.remove());
-      const msg = chatMessages.find(m => m.id === msgId);
-      if(!msg) return;
-      const current = msg.reactions?.[currentUser];
       try {
-        const newReacts = {...(msg.reactions||{})};
-        if(current === emoji) {
-          // Quitar reacción
-          delete newReacts[currentUser];
-        } else {
-          newReacts[currentUser] = emoji;
-        }
-        await updateDoc(doc(db,'chat',msgId), { reactions: newReacts });
-      } catch(e) {
-        showToast('❌ No se pudo reaccionar', 'err');
-      }
+        const snap = await getDoc(doc(db,'config','results'));
+        if(snap.exists()) { const d=snap.data(); delete d[mid]; await setDoc(doc(db,'config','results'),d); }
+        showToast('🗑 Resultado borrado');
+      } catch(e) { showToast('❌ Error al borrar','err'); }
     };
 
     window.__sendChat = async () => {
@@ -1244,59 +1196,47 @@
       const text = input.value.trim();
       if(!text) return;
       input.value = '';
-      const userName = allUsers[currentUser]?.name || currentUser;
+      const userData = allUsers[currentUID] || {};
       try {
         await addDoc(collection(db,'chat'), {
-          user: currentUser,
-          name: userName,
+          uid: currentUID,
+          name: userData.name || currentUser,
           text,
           ts: serverTimestamp()
         });
-      } catch(e) {
-        showToast('❌ Error al enviar','err');
-      }
+      } catch(e) { showToast('❌ Error al enviar','err'); }
     };
 
-    window.__deleteUser = async (uname) => {
-      if(!confirm(`¿Borrar el usuario @${uname}? Se eliminan sus datos y pronósticos. Esta acción no se puede deshacer.`)) return;
+    window.__deleteUser = async (uid) => {
+      const u = allUsers[uid];
+      if(!confirm(`¿Borrar el usuario ${u?.name||uid}? Se eliminan sus datos y pronósticos.`)) return;
       try {
-        await deleteDoc(doc(db,'users',uname));
-        showToast('🗑 Usuario @'+uname+' eliminado');
-      } catch(e) {
-        showToast('❌ Error al borrar: '+e.message,'err');
-      }
+        await deleteDoc(doc(db,'users',uid));
+        showToast('🗑 Usuario eliminado');
+      } catch(e) { showToast('❌ Error al borrar: '+e.message,'err'); }
     };
 
     window.__selectClub = async (clubId) => {
       try {
-        await setDoc(doc(db,'users',currentUser),{club: clubId},{merge:true});
-        showToast('✅ Equipo guardado: ' + getClub(clubId)?.name);
-        // Re-render profile to show selection
+        await setDoc(doc(db,'users',currentUID),{club:clubId},{merge:true});
+        showToast('✅ Equipo guardado: '+getClub(clubId)?.name);
         render();
-      } catch(e) {
-        showToast('❌ Error al guardar','err');
-      }
+      } catch(e) { showToast('❌ Error al guardar','err'); }
     };
 
-    window.__approveUser = async (uname) => {
+    window.__approveUser = async (uid) => {
       try {
-        await setDoc(doc(db,'users',uname),{status:'approved'},{merge:true});
+        await setDoc(doc(db,'users',uid),{status:'approved'},{merge:true});
         showToast('✅ Usuario aprobado');
-      } catch(e) {
-        console.error('approve error:',e);
-        showToast('❌ Error: ' + e.message,'err');
-      }
+      } catch(e) { showToast('❌ Error: '+e.message,'err'); }
     };
 
-    window.__rejectUser = async (uname) => {
-      if(!confirm('¿Rechazar a este usuario? No podrá ingresar al prode.')) return;
+    window.__rejectUser = async (uid) => {
+      if(!confirm('¿Rechazar a este usuario?')) return;
       try {
-        await setDoc(doc(db,'users',uname),{status:'rejected'},{merge:true});
+        await setDoc(doc(db,'users',uid),{status:'rejected'},{merge:true});
         showToast('🚫 Usuario rechazado');
-      } catch(e) {
-        console.error('reject error:',e);
-        showToast('❌ Error: ' + e.message,'err');
-      }
+      } catch(e) { showToast('❌ Error: '+e.message,'err'); }
     };
 
     render();
