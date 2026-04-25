@@ -280,14 +280,16 @@
       }
     });
 
+    const CLOSE_MINUTES = 5; // minutos antes del partido que se cierran los pronósticos
+
     function getMatchStatus(m) {
       const diff = (new Date(`${m.date}T${m.time}:00`) - new Date()) / 60000;
-      if (diff > 30) return 'open';
+      if (diff > CLOSE_MINUTES) return 'open';
       if (diff > -110) return 'live';
       return 'closed';
     }
     function getCountdown(m) {
-      const diff = new Date(`${m.date}T${m.time}:00`) - new Date() - 1800000;
+      const diff = new Date(`${m.date}T${m.time}:00`) - new Date() - CLOSE_MINUTES * 60000;
       if (diff <= 0) return null;
       const h = Math.floor(diff/3600000), mn = Math.floor((diff%3600000)/60000);
       return h > 48 ? `Cierra en ${Math.floor(h/24)}d` : `Cierra en ${h}h ${mn}m`;
@@ -626,7 +628,7 @@
       const filtered=MATCHES.filter(m=>matchFilter==='all'||getMatchStatus(m)===matchFilter);
       const myData = allUsers[currentUID] || {};
       const preds = myData.predictions || {};
-      const adminView = isAdmin() && !allUsers[currentUID]?.playerAdmin;
+      const adminView = isAdmin() && !PLAYER_ADMINS.includes(currentUser);
       const cards=filtered.map(m=>{
         const status=getMatchStatus(m),pred=preds[m.id]||{},res=results[m.id],cd=getCountdown(m),isOpen=status==='open';
         const revealed = (status==='live'||status==='closed');
