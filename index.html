@@ -626,7 +626,7 @@
       const filtered=MATCHES.filter(m=>matchFilter==='all'||getMatchStatus(m)===matchFilter);
       const myData = allUsers[currentUID] || {};
       const preds = myData.predictions || {};
-      const adminView = isAdmin() && !PLAYER_ADMINS.includes(currentUser);
+      const adminView = isAdmin() && !allUsers[currentUID]?.playerAdmin;
       const cards=filtered.map(m=>{
         const status=getMatchStatus(m),pred=preds[m.id]||{},res=results[m.id],cd=getCountdown(m),isOpen=status==='open';
         const revealed = (status==='live'||status==='closed');
